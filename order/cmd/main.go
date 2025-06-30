@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 
 	// customMiddleware "github.com/olezhek28/microservices-course-examples/week_1/http_chi_ogen/internal/middleware"
 	orderV1 "github.com/Medveddo/rocket-science/shared/pkg/openapi/order/v1"
@@ -26,17 +27,32 @@ const (
 	shutdownTimeout   = 10 * time.Second
 )
 
+type Order struct {
+	OrderUuid uuid.UUID
+	UserUuid uuid.UUID
+	PartsUuids []uuid.UUID
+}
+
 // WeatherStorage представляет потокобезопасное хранилище данных о погоде
 type OrderStorage struct {
 	mu       sync.RWMutex
-	orders map[string]*orderV1.Order
+	orders map[string]*Order
 }
 
 // NewWeatherStorage создает новое хранилище данных о погоде
 func NewOrderStorage() *OrderStorage {
 	return &OrderStorage{
-		orders: make(map[string]*orders.Weather),
+		orders: make(map[string]*Order),
 	}
+}
+
+func (s *OrderStorage) UpdateOrder(order *Order) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.orders[order.OrderUuid.String()] = order
+	
+	return nil
 }
 
 // WeatherHandler реализует интерфейс weatherV1.Handler для обработки запросов к API погоды
@@ -49,6 +65,26 @@ func NewOrderHandler(storage *OrderStorage) *OrderHandler {
 	return &OrderHandler{
 		storage: storage,
 	}
+}
+
+func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrderRequest) (orderV1.CreateOrderRes, error) {
+	orderUuid := uuid.New()
+	order := &Order{
+		UserUuid: req.UserUUID,
+		OrderUuid: orderUuid,
+		PartsUuids: req.PartUuids,
+	}
+	err := h.storage.UpdateOrder(order)
+	if err != nil {
+		return nil, h.NewError(nil, err)
+	}
+
+	response := &orderV1.CreateOrderResponse{
+		OrderUUID: order.OrderUuid,
+		TotalPrice: 10,
+	}
+	return response, nil
+
 }
 
 // NewError создает новую ошибку в формате GenericError
@@ -67,10 +103,10 @@ func main() {
 	storage := NewOrderStorage()
 
 	// Создаем обработчик API погоды
-	weatherHandler := NewOrderHandler(storage)
+	orderHandler := NewOrderHandler(storage)
 
 	// Создаем OpenAPI сервер
-	weatherServer, err := orderV1.NewServer(weatherHandler)
+	orderServer, err := orderV1.NewServer(orderHandler)
 	if err != nil {
 		log.Fatalf("ошибка создания сервера OpenAPI: %v", err)
 	}
@@ -85,7 +121,7 @@ func main() {
 	// r.Use(customMiddleware.RequestLogger)
 
 	// Монтируем обработчики OpenAPI
-	r.Mount("/", weatherServer)
+	r.Mount("/", orderServer)
 
 	// Запускаем HTTP-сервер
 	server := &http.Server{
