@@ -16,7 +16,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 
-	// customMiddleware "github.com/olezhek28/microservices-course-examples/week_1/http_chi_ogen/internal/middleware"
 	orderV1 "github.com/Medveddo/rocket-science/shared/pkg/openapi/order/v1"
 )
 
@@ -28,18 +27,16 @@ const (
 )
 
 type Order struct {
-	OrderUuid uuid.UUID
-	UserUuid uuid.UUID
+	OrderUuid  uuid.UUID
+	UserUuid   uuid.UUID
 	PartsUuids []uuid.UUID
 }
 
-// WeatherStorage представляет потокобезопасное хранилище данных о погоде
 type OrderStorage struct {
-	mu       sync.RWMutex
+	mu     sync.RWMutex
 	orders map[string]*Order
 }
 
-// NewWeatherStorage создает новое хранилище данных о погоде
 func NewOrderStorage() *OrderStorage {
 	return &OrderStorage{
 		orders: make(map[string]*Order),
@@ -51,16 +48,14 @@ func (s *OrderStorage) UpdateOrder(order *Order) error {
 	defer s.mu.Unlock()
 
 	s.orders[order.OrderUuid.String()] = order
-	
+
 	return nil
 }
 
-// WeatherHandler реализует интерфейс weatherV1.Handler для обработки запросов к API погоды
 type OrderHandler struct {
 	storage *OrderStorage
 }
 
-// NewWeatherHandler создает новый обработчик запросов к API погоды
 func NewOrderHandler(storage *OrderStorage) *OrderHandler {
 	return &OrderHandler{
 		storage: storage,
@@ -70,8 +65,8 @@ func NewOrderHandler(storage *OrderStorage) *OrderHandler {
 func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrderRequest) (orderV1.CreateOrderRes, error) {
 	orderUuid := uuid.New()
 	order := &Order{
-		UserUuid: req.UserUUID,
-		OrderUuid: orderUuid,
+		UserUuid:   req.UserUUID,
+		OrderUuid:  orderUuid,
 		PartsUuids: req.PartUuids,
 	}
 	err := h.storage.UpdateOrder(order)
@@ -80,11 +75,10 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrder
 	}
 
 	response := &orderV1.CreateOrderResponse{
-		OrderUUID: order.OrderUuid,
+		OrderUUID:  order.OrderUuid,
 		TotalPrice: 10,
 	}
 	return response, nil
-
 }
 
 // NewError создает новую ошибку в формате GenericError

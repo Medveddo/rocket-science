@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+// Package inventory.v1 содержит API для работы с сервисом Inventory
+package inventory.v1;
+
+// import "google/protobuf/timestamp.proto";
+// import "google/protobuf/wrappers.proto";
+// import "google/protobuf/empty.proto";
+
+option go_package = "github.com/Medeveddo/rocket-science/shared/pkg/proto/inventory/v1;inventory_v1";
+
+
+service InventoryService {
+  // Получение данных о детали по её UUID
+  rpc GetPart(GetPartRequest) returns (GetPartResponse);
+}
+
+// Запрос на получение данных детали по UUID
+message GetPartRequest {
+  string uuid = 1;
+}
+
+// Ответ на запрос получения данных детали
+message GetPartResponse {
+  Part part = 1;
+}
+
+// Структура представляющая собой деталь
+message Part {
+    string uuid = 1;
+    string name = 2;
+    string description = 3;
+    double price = 4;
+    int64 stock_quantity = 5;
+    Category category = 6;
+}
+
+// Категория детали
+enum Category {
+    CATEGORY_UNSPECIFIED = 0;
+    CATEGORY_ENGINE = 1;
+    CATEGORY_FUEL = 2;
+    CATEGORY_PORTHOLE = 3;
+    CATEGORY_WING = 4;
+    CATEGORY_SHIELD = 5;
+}
