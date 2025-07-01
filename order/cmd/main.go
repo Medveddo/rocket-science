@@ -71,7 +71,7 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrder
 	}
 	err := h.storage.UpdateOrder(order)
 	if err != nil {
-		return nil, h.NewError(nil, err)
+		return nil, h.NewError(ctx, err)
 	}
 
 	response := &orderV1.CreateOrderResponse{
