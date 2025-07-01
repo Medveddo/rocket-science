@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
+	"github.com/Medveddo/rocket-science/shared/pkg/interceptor"
 	inventoryV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/inventory/v1"
 )
 
@@ -82,7 +83,11 @@ func main() {
 	}()
 
 	// Создаем gRPC сервер
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			grpc.UnaryServerInterceptor(interceptor.LoggerInterceptor()),
+		),
+	)
 
 	// Регистрируем наш сервис
 	service := NewInventoryService()
