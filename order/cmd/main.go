@@ -15,8 +15,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	orderV1 "github.com/Medveddo/rocket-science/shared/pkg/openapi/order/v1"
+	paymentV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/payment/v1"
 )
 
 const (
@@ -26,10 +29,21 @@ const (
 	shutdownTimeout   = 10 * time.Second
 )
 
+const (
+	ORDER_STATUS_UNKNOWN = iota
+	ORDER_STATUS_PENDING_PAYMENT
+	ORDER_STATUS_PAID
+	ORDER_STATUS_CANCELED
+)
+
 type Order struct {
-	OrderUuid  uuid.UUID
-	UserUuid   uuid.UUID
-	PartsUuids []uuid.UUID
+	OrderUuid       uuid.UUID
+	UserUuid        uuid.UUID
+	PartsUuids      []uuid.UUID
+	TotalPrice      float64
+	TransactionUuid uuid.UUID
+	PaymentMethod   *string
+	Status          uint8
 }
 
 type OrderStorage struct {
@@ -68,6 +82,7 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrder
 		UserUuid:   req.UserUUID,
 		OrderUuid:  orderUuid,
 		PartsUuids: req.PartUuids,
+		Status:     ORDER_STATUS_PENDING_PAYMENT,
 	}
 	err := h.storage.UpdateOrder(order)
 	if err != nil {
@@ -79,6 +94,77 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrder
 		TotalPrice: 10,
 	}
 	return response, nil
+}
+
+func (h *OrderHandler) PayOrder(ctx context.Context, req *orderV1.PayOrderRequest, params orderV1.PayOrderParams) (orderV1.PayOrderRes, error) {
+	h.storage.mu.Lock()
+	defer h.storage.mu.Unlock()
+
+	order, ok := h.storage.orders[params.OrderUUID]
+
+	if !ok {
+		return &orderV1.NotFoundError{
+			Code:    404,
+			Message: "Order with UUID: '" + params.OrderUUID + "' not found",
+		}, nil
+	}
+
+	conn, err := grpc.NewClient(
+		"localhost:50052",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		log.Printf("failed to connect: %v\n", err)
+		return &orderV1.InternalServerError{
+			Code:    500,
+			Message: "failed to connect to payment service",
+		}, err
+	}
+
+	client := paymentV1.NewPaymentServiceClient(conn)
+
+	paymentMethodsMap := map[orderV1.PayOrderRequestPaymentMethod]paymentV1.PaymentMethod{
+		orderV1.PayOrderRequestPaymentMethodCARD:          paymentV1.PaymentMethod_PAYMENT_METHOD_CARD,
+		orderV1.PayOrderRequestPaymentMethodSBP:           paymentV1.PaymentMethod_PAYMENT_METHOD_SBP,
+		orderV1.PayOrderRequestPaymentMethodCREDITCARD:    paymentV1.PaymentMethod_PAYMENT_METHOD_CREDIT_CARD,
+		orderV1.PayOrderRequestPaymentMethodINVESTORMONEY: paymentV1.PaymentMethod_PAYMENT_METHOD_INVESTOR_MONEY,
+	}
+
+	paymentMethod, ok := paymentMethodsMap[req.PaymentMethod]
+	if !ok {
+		return &orderV1.BadRequestError{
+			Code:    400,
+			Message: "Payment method '" + string(req.PaymentMethod) + "' is not supported",
+		}, nil
+	}
+	response, err := client.PayOrder(ctx, &paymentV1.PayOrderRequest{
+		UserUuid:      order.UserUuid.String(),
+		OrderUuid:     order.OrderUuid.String(),
+		PaymentMethod: paymentMethod,
+	})
+	if err != nil {
+		return &orderV1.InternalServerError{
+			Code:    500,
+			Message: "failed to process payment",
+		}, err
+	}
+
+	transactionUUID, err := uuid.Parse(response.TransactionUuid)
+	if err != nil {
+		return &orderV1.InternalServerError{
+			Code:    500,
+			Message: "failed to process payment",
+		}, err
+	}
+
+	paymentMethodStr := string(req.PaymentMethod)
+	order.Status = ORDER_STATUS_PAID
+	order.PaymentMethod = &paymentMethodStr
+	order.TransactionUuid = transactionUUID
+
+	return &orderV1.PayOrderResponse{
+		TransactionUUID: transactionUUID,
+	}, nil
 }
 
 // NewError создает новую ошибку в формате GenericError

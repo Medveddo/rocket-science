@@ -5,6 +5,7 @@ package order_v1
 import (
 	"fmt"
 
+	"github.com/go-faster/errors"
 	"github.com/google/uuid"
 )
 
@@ -41,6 +42,7 @@ func (s *BadRequestError) SetMessage(val string) {
 }
 
 func (*BadRequestError) createOrderRes() {}
+func (*BadRequestError) payOrderRes()    {}
 
 // Ref: #/components/schemas/create_order_request
 type CreateOrderRequest struct {
@@ -183,6 +185,37 @@ func (s *InternalServerError) SetMessage(val string) {
 }
 
 func (*InternalServerError) createOrderRes() {}
+func (*InternalServerError) payOrderRes()    {}
+
+// Ref: #/components/schemas/not_found_error
+type NotFoundError struct {
+	// HTTP-код ошибки.
+	Code int `json:"code"`
+	// Описание ошибки.
+	Message string `json:"message"`
+}
+
+// GetCode returns the value of Code.
+func (s *NotFoundError) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *NotFoundError) GetMessage() string {
+	return s.Message
+}
+
+// SetCode sets the value of Code.
+func (s *NotFoundError) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *NotFoundError) SetMessage(val string) {
+	s.Message = val
+}
+
+func (*NotFoundError) payOrderRes() {}
 
 // NewOptInt returns new OptInt with value set to v.
 func NewOptInt(v int) OptInt {
@@ -275,3 +308,93 @@ func (o OptString) Or(d string) string {
 	}
 	return d
 }
+
+// Ref: #/components/schemas/pay_order_request
+type PayOrderRequest struct {
+	// Метод оплаты.
+	PaymentMethod PayOrderRequestPaymentMethod `json:"payment_method"`
+}
+
+// GetPaymentMethod returns the value of PaymentMethod.
+func (s *PayOrderRequest) GetPaymentMethod() PayOrderRequestPaymentMethod {
+	return s.PaymentMethod
+}
+
+// SetPaymentMethod sets the value of PaymentMethod.
+func (s *PayOrderRequest) SetPaymentMethod(val PayOrderRequestPaymentMethod) {
+	s.PaymentMethod = val
+}
+
+// Метод оплаты.
+type PayOrderRequestPaymentMethod string
+
+const (
+	PayOrderRequestPaymentMethodCARD          PayOrderRequestPaymentMethod = "CARD"
+	PayOrderRequestPaymentMethodSBP           PayOrderRequestPaymentMethod = "SBP"
+	PayOrderRequestPaymentMethodCREDITCARD    PayOrderRequestPaymentMethod = "CREDIT_CARD"
+	PayOrderRequestPaymentMethodINVESTORMONEY PayOrderRequestPaymentMethod = "INVESTOR_MONEY"
+)
+
+// AllValues returns all PayOrderRequestPaymentMethod values.
+func (PayOrderRequestPaymentMethod) AllValues() []PayOrderRequestPaymentMethod {
+	return []PayOrderRequestPaymentMethod{
+		PayOrderRequestPaymentMethodCARD,
+		PayOrderRequestPaymentMethodSBP,
+		PayOrderRequestPaymentMethodCREDITCARD,
+		PayOrderRequestPaymentMethodINVESTORMONEY,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PayOrderRequestPaymentMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case PayOrderRequestPaymentMethodCARD:
+		return []byte(s), nil
+	case PayOrderRequestPaymentMethodSBP:
+		return []byte(s), nil
+	case PayOrderRequestPaymentMethodCREDITCARD:
+		return []byte(s), nil
+	case PayOrderRequestPaymentMethodINVESTORMONEY:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PayOrderRequestPaymentMethod) UnmarshalText(data []byte) error {
+	switch PayOrderRequestPaymentMethod(data) {
+	case PayOrderRequestPaymentMethodCARD:
+		*s = PayOrderRequestPaymentMethodCARD
+		return nil
+	case PayOrderRequestPaymentMethodSBP:
+		*s = PayOrderRequestPaymentMethodSBP
+		return nil
+	case PayOrderRequestPaymentMethodCREDITCARD:
+		*s = PayOrderRequestPaymentMethodCREDITCARD
+		return nil
+	case PayOrderRequestPaymentMethodINVESTORMONEY:
+		*s = PayOrderRequestPaymentMethodINVESTORMONEY
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/pay_order_response
+type PayOrderResponse struct {
+	// UUID обработанной транзацкции оплаты.
+	TransactionUUID uuid.UUID `json:"transaction_uuid"`
+}
+
+// GetTransactionUUID returns the value of TransactionUUID.
+func (s *PayOrderResponse) GetTransactionUUID() uuid.UUID {
+	return s.TransactionUUID
+}
+
+// SetTransactionUUID sets the value of TransactionUUID.
+func (s *PayOrderResponse) SetTransactionUUID(val uuid.UUID) {
+	s.TransactionUUID = val
+}
+
+func (*PayOrderResponse) payOrderRes() {}

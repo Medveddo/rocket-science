@@ -7,4 +7,5 @@ type OperationName = string
 
 const (
 	CreateOrderOperation OperationName = "CreateOrder"
+	PayOrderOperation    OperationName = "PayOrder"
 )

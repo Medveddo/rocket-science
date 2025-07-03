@@ -4,3 +4,7 @@ package order_v1
 type CreateOrderRes interface {
 	createOrderRes()
 }
+
+type PayOrderRes interface {
+	payOrderRes()
+}

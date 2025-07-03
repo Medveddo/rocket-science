@@ -22,6 +22,15 @@ func (UnimplementedHandler) CreateOrder(ctx context.Context, req *CreateOrderReq
 	return r, ht.ErrNotImplemented
 }
 
+// PayOrder implements PayOrder operation.
+//
+// Оплата заказа.
+//
+// POST /api/v1/{order_uuid}/pay
+func (UnimplementedHandler) PayOrder(ctx context.Context, req *PayOrderRequest, params PayOrderParams) (r PayOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // NewError creates *GenericErrorStatusCode from error returned by handler.
 //
 // Used for common default response.

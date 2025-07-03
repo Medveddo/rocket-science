@@ -15,3 +15,5 @@ tags:
 paths:
   /api/v1/orders:
     $ref: ./paths/orders.yaml
+  /api/v1/{order_uuid}/pay:
+    $ref: ./paths/orders_pay.yaml

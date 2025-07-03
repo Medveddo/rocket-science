@@ -14,6 +14,12 @@ type Handler interface {
 	//
 	// POST /api/v1/orders
 	CreateOrder(ctx context.Context, req *CreateOrderRequest) (CreateOrderRes, error)
+	// PayOrder implements PayOrder operation.
+	//
+	// Оплата заказа.
+	//
+	// POST /api/v1/{order_uuid}/pay
+	PayOrder(ctx context.Context, req *PayOrderRequest, params PayOrderParams) (PayOrderRes, error)
 	// NewError creates *GenericErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.
