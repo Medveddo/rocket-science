@@ -67,12 +67,17 @@ func (s *OrderStorage) UpdateOrder(order *Order) error {
 }
 
 type OrderHandler struct {
-	storage *OrderStorage
+	storage       *OrderStorage
+	paymentClient paymentV1.PaymentServiceClient
 }
 
-func NewOrderHandler(storage *OrderStorage) *OrderHandler {
+func NewOrderHandler(
+	storage *OrderStorage,
+	paymentClient paymentV1.PaymentServiceClient,
+) *OrderHandler {
 	return &OrderHandler{
-		storage: storage,
+		storage:       storage,
+		paymentClient: paymentClient,
 	}
 }
 
@@ -109,20 +114,6 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderV1.PayOrderReques
 		}, nil
 	}
 
-	conn, err := grpc.NewClient(
-		"localhost:50052",
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		log.Printf("failed to connect: %v\n", err)
-		return &orderV1.InternalServerError{
-			Code:    500,
-			Message: "failed to connect to payment service",
-		}, err
-	}
-
-	client := paymentV1.NewPaymentServiceClient(conn)
-
 	paymentMethodsMap := map[orderV1.PayOrderRequestPaymentMethod]paymentV1.PaymentMethod{
 		orderV1.PayOrderRequestPaymentMethodCARD:          paymentV1.PaymentMethod_PAYMENT_METHOD_CARD,
 		orderV1.PayOrderRequestPaymentMethodSBP:           paymentV1.PaymentMethod_PAYMENT_METHOD_SBP,
@@ -137,7 +128,8 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderV1.PayOrderReques
 			Message: "Payment method '" + string(req.PaymentMethod) + "' is not supported",
 		}, nil
 	}
-	response, err := client.PayOrder(ctx, &paymentV1.PayOrderRequest{
+
+	response, err := h.paymentClient.PayOrder(ctx, &paymentV1.PayOrderRequest{
 		UserUuid:      order.UserUuid.String(),
 		OrderUuid:     order.OrderUuid.String(),
 		PaymentMethod: paymentMethod,
@@ -182,8 +174,22 @@ func main() {
 	// Создаем хранилище для данных о погоде
 	storage := NewOrderStorage()
 
+	conn, err := grpc.NewClient(
+		"localhost:50052",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+
+	if err != nil {
+		log.Fatalf("failed to connect to Payment Service: %v\n", err)
+	}
+
+	// to warm up channels
+	conn.Connect()
+
+	paymentClient := paymentV1.NewPaymentServiceClient(conn)
+
 	// Создаем обработчик API погоды
-	orderHandler := NewOrderHandler(storage)
+	orderHandler := NewOrderHandler(storage, paymentClient)
 
 	// Создаем OpenAPI сервер
 	orderServer, err := orderV1.NewServer(orderHandler)
