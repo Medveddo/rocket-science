@@ -41,27 +41,27 @@ type Order struct {
 	UserUuid        uuid.UUID
 	PartsUuids      []uuid.UUID
 	TotalPrice      float64
-	TransactionUuid uuid.UUID
+	TransactionUuid *uuid.UUID
 	PaymentMethod   *string
 	Status          uint8
 }
 
 type OrderStorage struct {
 	mu     sync.RWMutex
-	orders map[string]*Order
+	orders map[string]*orderV1.OrderDto
 }
 
 func NewOrderStorage() *OrderStorage {
 	return &OrderStorage{
-		orders: make(map[string]*Order),
+		orders: make(map[string]*orderV1.OrderDto),
 	}
 }
 
-func (s *OrderStorage) UpdateOrder(order *Order) error {
+func (s *OrderStorage) UpdateOrder(order *orderV1.OrderDto) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.orders[order.OrderUuid.String()] = order
+	s.orders[order.OrderUUID.String()] = order
 
 	return nil
 }
@@ -83,19 +83,20 @@ func NewOrderHandler(
 
 func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrderRequest) (orderV1.CreateOrderRes, error) {
 	orderUuid := uuid.New()
-	order := &Order{
-		UserUuid:   req.UserUUID,
-		OrderUuid:  orderUuid,
-		PartsUuids: req.PartUuids,
-		Status:     ORDER_STATUS_PENDING_PAYMENT,
+	// TODO: check parts in inventory service
+
+	order := &orderV1.OrderDto{
+		UserUUID:  req.UserUUID,
+		OrderUUID: orderUuid,
+		PartUuids: req.PartUuids,
+		Status:    orderV1.OrderStatusPENDINGPAYMENT,
 	}
 	err := h.storage.UpdateOrder(order)
 	if err != nil {
 		return nil, h.NewError(ctx, err)
 	}
-
 	response := &orderV1.CreateOrderResponse{
-		OrderUUID:  order.OrderUuid,
+		OrderUUID:  order.OrderUUID,
 		TotalPrice: 10,
 	}
 	return response, nil
@@ -130,8 +131,8 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderV1.PayOrderReques
 	}
 
 	response, err := h.paymentClient.PayOrder(ctx, &paymentV1.PayOrderRequest{
-		UserUuid:      order.UserUuid.String(),
-		OrderUuid:     order.OrderUuid.String(),
+		UserUuid:      order.UserUUID.String(),
+		OrderUuid:     order.OrderUUID.String(),
 		PaymentMethod: paymentMethod,
 	})
 	if err != nil {
@@ -149,14 +150,40 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *orderV1.PayOrderReques
 		}, err
 	}
 
-	paymentMethodStr := string(req.PaymentMethod)
-	order.Status = ORDER_STATUS_PAID
-	order.PaymentMethod = &paymentMethodStr
-	order.TransactionUuid = transactionUUID
+	order.Status = orderV1.OrderStatusPAID
+	order.PaymentMethod = orderV1.NewOptPaymentMethod(
+		orderV1.PaymentMethod(req.PaymentMethod),
+	)
+	order.TransactionUUID = orderV1.NewOptNilUUID(transactionUUID)
 
 	return &orderV1.PayOrderResponse{
 		TransactionUUID: transactionUUID,
 	}, nil
+}
+
+func (h *OrderHandler) GetOrder(ctx context.Context, params orderV1.GetOrderParams) (orderV1.GetOrderRes, error) {
+	h.storage.mu.RLock()
+	defer h.storage.mu.RUnlock()
+
+	order, ok := h.storage.orders[params.OrderUUID]
+	if !ok {
+		return &orderV1.NotFoundError{
+			Code:    404,
+			Message: "Order with UUID: '" + params.OrderUUID + "' not found",
+		}, nil
+	}
+
+	resp := &orderV1.OrderDto{
+		OrderUUID:       order.OrderUUID,
+		UserUUID:        order.UserUUID,
+		PartUuids:       order.PartUuids,
+		TotalPrice:      order.TotalPrice,
+		TransactionUUID: order.TransactionUUID,
+		PaymentMethod:   order.PaymentMethod,
+		Status:          order.Status,
+	}
+
+	return resp, nil
 }
 
 // NewError создает новую ошибку в формате GenericError
@@ -178,7 +205,6 @@ func main() {
 		"localhost:50052",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
-
 	if err != nil {
 		log.Fatalf("failed to connect to Payment Service: %v\n", err)
 	}

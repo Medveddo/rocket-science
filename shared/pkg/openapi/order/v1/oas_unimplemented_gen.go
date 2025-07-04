@@ -22,11 +22,20 @@ func (UnimplementedHandler) CreateOrder(ctx context.Context, req *CreateOrderReq
 	return r, ht.ErrNotImplemented
 }
 
+// GetOrder implements GetOrder operation.
+//
+// Получить Order по UUID.
+//
+// GET /api/v1/orders/{order_uuid}
+func (UnimplementedHandler) GetOrder(ctx context.Context, params GetOrderParams) (r GetOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // PayOrder implements PayOrder operation.
 //
 // Оплата заказа.
 //
-// POST /api/v1/{order_uuid}/pay
+// POST /api/v1/orders/{order_uuid}/pay
 func (UnimplementedHandler) PayOrder(ctx context.Context, req *PayOrderRequest, params PayOrderParams) (r PayOrderRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

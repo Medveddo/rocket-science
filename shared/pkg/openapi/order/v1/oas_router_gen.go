@@ -49,73 +49,77 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/api/v1/"
+		case '/': // Prefix: "/api/v1/orders"
 
-			if l := len("/api/v1/"); len(elem) >= l && elem[0:l] == "/api/v1/" {
+			if l := len("/api/v1/orders"); len(elem) >= l && elem[0:l] == "/api/v1/orders" {
 				elem = elem[l:]
 			} else {
 				break
 			}
 
 			if len(elem) == 0 {
-				break
+				switch r.Method {
+				case "POST":
+					s.handleCreateOrderRequest([0]string{}, elemIsEscaped, w, r)
+				default:
+					s.notAllowed(w, r, "POST")
+				}
+
+				return
 			}
 			switch elem[0] {
-			case 'o': // Prefix: "orders"
-				origElem := elem
-				if l := len("orders"); len(elem) >= l && elem[0:l] == "orders" {
+			case '/': // Prefix: "/"
+
+				if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
-				if len(elem) == 0 {
-					// Leaf node.
-					switch r.Method {
-					case "POST":
-						s.handleCreateOrderRequest([0]string{}, elemIsEscaped, w, r)
-					default:
-						s.notAllowed(w, r, "POST")
-					}
-
-					return
+				// Param: "order_uuid"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
 				}
-
-				elem = origElem
-			}
-			// Param: "order_uuid"
-			// Match until "/"
-			idx := strings.IndexByte(elem, '/')
-			if idx < 0 {
-				idx = len(elem)
-			}
-			args[0] = elem[:idx]
-			elem = elem[idx:]
-
-			if len(elem) == 0 {
-				break
-			}
-			switch elem[0] {
-			case '/': // Prefix: "/pay"
-
-				if l := len("/pay"); len(elem) >= l && elem[0:l] == "/pay" {
-					elem = elem[l:]
-				} else {
-					break
-				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch r.Method {
-					case "POST":
-						s.handlePayOrderRequest([1]string{
+					case "GET":
+						s.handleGetOrderRequest([1]string{
 							args[0],
 						}, elemIsEscaped, w, r)
 					default:
-						s.notAllowed(w, r, "POST")
+						s.notAllowed(w, r, "GET")
 					}
 
 					return
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/pay"
+
+					if l := len("/pay"); len(elem) >= l && elem[0:l] == "/pay" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handlePayOrderRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "POST")
+						}
+
+						return
+					}
+
 				}
 
 			}
@@ -200,79 +204,85 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/api/v1/"
+		case '/': // Prefix: "/api/v1/orders"
 
-			if l := len("/api/v1/"); len(elem) >= l && elem[0:l] == "/api/v1/" {
+			if l := len("/api/v1/orders"); len(elem) >= l && elem[0:l] == "/api/v1/orders" {
 				elem = elem[l:]
 			} else {
 				break
 			}
 
 			if len(elem) == 0 {
-				break
+				switch method {
+				case "POST":
+					r.name = CreateOrderOperation
+					r.summary = "Создание заказа"
+					r.operationID = "CreateOrder"
+					r.pathPattern = "/api/v1/orders"
+					r.args = args
+					r.count = 0
+					return r, true
+				default:
+					return
+				}
 			}
 			switch elem[0] {
-			case 'o': // Prefix: "orders"
-				origElem := elem
-				if l := len("orders"); len(elem) >= l && elem[0:l] == "orders" {
+			case '/': // Prefix: "/"
+
+				if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
-				if len(elem) == 0 {
-					// Leaf node.
-					switch method {
-					case "POST":
-						r.name = CreateOrderOperation
-						r.summary = "Создание заказа"
-						r.operationID = "CreateOrder"
-						r.pathPattern = "/api/v1/orders"
-						r.args = args
-						r.count = 0
-						return r, true
-					default:
-						return
-					}
+				// Param: "order_uuid"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
 				}
-
-				elem = origElem
-			}
-			// Param: "order_uuid"
-			// Match until "/"
-			idx := strings.IndexByte(elem, '/')
-			if idx < 0 {
-				idx = len(elem)
-			}
-			args[0] = elem[:idx]
-			elem = elem[idx:]
-
-			if len(elem) == 0 {
-				break
-			}
-			switch elem[0] {
-			case '/': // Prefix: "/pay"
-
-				if l := len("/pay"); len(elem) >= l && elem[0:l] == "/pay" {
-					elem = elem[l:]
-				} else {
-					break
-				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch method {
-					case "POST":
-						r.name = PayOrderOperation
-						r.summary = "Оплата заказа"
-						r.operationID = "PayOrder"
-						r.pathPattern = "/api/v1/{order_uuid}/pay"
+					case "GET":
+						r.name = GetOrderOperation
+						r.summary = "Получить Order по UUID"
+						r.operationID = "GetOrder"
+						r.pathPattern = "/api/v1/orders/{order_uuid}"
 						r.args = args
 						r.count = 1
 						return r, true
 					default:
 						return
 					}
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/pay"
+
+					if l := len("/pay"); len(elem) >= l && elem[0:l] == "/pay" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = PayOrderOperation
+							r.summary = "Оплата заказа"
+							r.operationID = "PayOrder"
+							r.pathPattern = "/api/v1/orders/{order_uuid}/pay"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
 			}

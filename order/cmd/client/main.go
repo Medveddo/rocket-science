@@ -56,4 +56,19 @@ func main() {
 		return
 	}
 	log.Println(payOK.TransactionUUID)
+
+	getOrderResponse, err := client.GetOrder(ctx, orderV1.GetOrderParams{
+		OrderUUID: orderOK.OrderUUID.String(),
+	})
+	if err != nil {
+		log.Printf("❌ Ошибка при получкении заказа: %v\n", err)
+		return
+	}
+
+	getOrderOK, ok := getOrderResponse.(*orderV1.OrderDto)
+	if !ok {
+		log.Printf("❌ Неожиданный тип ответа: %T\n", response)
+		return
+	}
+	log.Println(getOrderOK.Status)
 }

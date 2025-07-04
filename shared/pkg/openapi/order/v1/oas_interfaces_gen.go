@@ -5,6 +5,10 @@ type CreateOrderRes interface {
 	createOrderRes()
 }
 
+type GetOrderRes interface {
+	getOrderRes()
+}
+
 type PayOrderRes interface {
 	payOrderRes()
 }

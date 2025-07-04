@@ -34,11 +34,17 @@ type Invoker interface {
 	//
 	// POST /api/v1/orders
 	CreateOrder(ctx context.Context, request *CreateOrderRequest) (CreateOrderRes, error)
+	// GetOrder invokes GetOrder operation.
+	//
+	// Получить Order по UUID.
+	//
+	// GET /api/v1/orders/{order_uuid}
+	GetOrder(ctx context.Context, params GetOrderParams) (GetOrderRes, error)
 	// PayOrder invokes PayOrder operation.
 	//
 	// Оплата заказа.
 	//
-	// POST /api/v1/{order_uuid}/pay
+	// POST /api/v1/orders/{order_uuid}/pay
 	PayOrder(ctx context.Context, request *PayOrderRequest, params PayOrderParams) (PayOrderRes, error)
 }
 
@@ -164,11 +170,101 @@ func (c *Client) sendCreateOrder(ctx context.Context, request *CreateOrderReques
 	return result, nil
 }
 
+// GetOrder invokes GetOrder operation.
+//
+// Получить Order по UUID.
+//
+// GET /api/v1/orders/{order_uuid}
+func (c *Client) GetOrder(ctx context.Context, params GetOrderParams) (GetOrderRes, error) {
+	res, err := c.sendGetOrder(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetOrder(ctx context.Context, params GetOrderParams) (res GetOrderRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("GetOrder"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/api/v1/orders/{order_uuid}"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetOrderOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/api/v1/orders/"
+	{
+		// Encode "order_uuid" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "order_uuid",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.OrderUUID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetOrderResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // PayOrder invokes PayOrder operation.
 //
 // Оплата заказа.
 //
-// POST /api/v1/{order_uuid}/pay
+// POST /api/v1/orders/{order_uuid}/pay
 func (c *Client) PayOrder(ctx context.Context, request *PayOrderRequest, params PayOrderParams) (PayOrderRes, error) {
 	res, err := c.sendPayOrder(ctx, request, params)
 	return res, err
@@ -178,7 +274,7 @@ func (c *Client) sendPayOrder(ctx context.Context, request *PayOrderRequest, par
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("PayOrder"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/api/v1/{order_uuid}/pay"),
+		semconv.HTTPRouteKey.String("/api/v1/orders/{order_uuid}/pay"),
 	}
 
 	// Run stopwatch.
@@ -211,7 +307,7 @@ func (c *Client) sendPayOrder(ctx context.Context, request *PayOrderRequest, par
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [3]string
-	pathParts[0] = "/api/v1/"
+	pathParts[0] = "/api/v1/orders/"
 	{
 		// Encode "order_uuid" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
