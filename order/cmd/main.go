@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	orderV1 "github.com/Medveddo/rocket-science/shared/pkg/openapi/order/v1"
+	inventoryV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/inventory/v1"
 	paymentV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/payment/v1"
 )
 
@@ -67,23 +69,66 @@ func (s *OrderStorage) UpdateOrder(order *orderV1.OrderDto) error {
 }
 
 type OrderHandler struct {
-	storage       *OrderStorage
+	inventoryClient inventoryV1.InventoryServiceClient
 	paymentClient paymentV1.PaymentServiceClient
+	storage       *OrderStorage
 }
 
 func NewOrderHandler(
-	storage *OrderStorage,
+	inventoryClient inventoryV1.InventoryServiceClient,
 	paymentClient paymentV1.PaymentServiceClient,
+	storage *OrderStorage,
 ) *OrderHandler {
 	return &OrderHandler{
-		storage:       storage,
+		inventoryClient: inventoryClient,
 		paymentClient: paymentClient,
+		storage:       storage,
 	}
 }
 
 func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrderRequest) (orderV1.CreateOrderRes, error) {
 	orderUuid := uuid.New()
-	// TODO: check parts in inventory service
+
+    partUUIDs := make([]string, len(req.PartUuids))
+    for i, partUUID := range req.PartUuids {
+        partUUIDs[i] = partUUID.String()
+    }
+	
+	listPartsResponse, err := h.inventoryClient.ListParts(ctx, &inventoryV1.ListPartsRequest{
+		Filter: &inventoryV1.PartsFilter{
+			Uuids: partUUIDs,
+		},
+	})
+	
+	if err != nil {
+		return &orderV1.InternalServerError{
+			Code:    500,
+			Message: "failed to fetch inventory service",
+		}, err
+	}
+	
+	parts := listPartsResponse.GetParts()
+
+	if (len(parts) != len(req.PartUuids)) {
+
+		returned := make(map[string]struct{}, len(parts))
+		for _, part := range parts {
+			returned[part.GetUuid()] = struct{}{}
+		}
+
+		var missing []string
+		for _, reqUUID := range partUUIDs {
+			if _, ok := returned[reqUUID]; !ok {
+				missing = append(missing, reqUUID)
+			}
+		}
+
+		msg := fmt.Sprintf("The following partUuid(s) do not exist: %v", missing)
+		return &orderV1.BadRequestError{
+			Code:    400,
+			Message: msg,
+		}, nil
+	}
 
 	order := &orderV1.OrderDto{
 		UserUUID:  req.UserUUID,
@@ -91,7 +136,7 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrder
 		PartUuids: req.PartUuids,
 		Status:    orderV1.OrderStatusPENDINGPAYMENT,
 	}
-	err := h.storage.UpdateOrder(order)
+	err = h.storage.UpdateOrder(order)
 	if err != nil {
 		return nil, h.NewError(ctx, err)
 	}
@@ -244,14 +289,23 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to Payment Service: %v\n", err)
 	}
+	
+	inventoryConn, err := grpc.NewClient(
+		"localhost:50051",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		log.Fatalf("failed to connect to Payment Service: %v\n", err)
+	}
 
 	// to warm up channels
 	conn.Connect()
 
 	paymentClient := paymentV1.NewPaymentServiceClient(conn)
+	inventoryClient := inventoryV1.NewInventoryServiceClient(inventoryConn)
 
 	// Создаем обработчик API погоды
-	orderHandler := NewOrderHandler(storage, paymentClient)
+	orderHandler := NewOrderHandler(storage, paymentClient, inventoryClient)
 
 	// Создаем OpenAPI сервер
 	orderServer, err := orderV1.NewServer(orderHandler)
