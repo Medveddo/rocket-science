@@ -6,6 +6,7 @@ package order_v1
 type OperationName = string
 
 const (
+	CancelOrderOperation OperationName = "CancelOrder"
 	CreateOrderOperation OperationName = "CreateOrder"
 	GetOrderOperation    OperationName = "GetOrder"
 	PayOrderOperation    OperationName = "PayOrder"

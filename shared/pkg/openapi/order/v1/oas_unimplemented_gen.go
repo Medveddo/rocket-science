@@ -13,6 +13,15 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// CancelOrder implements CancelOrder operation.
+//
+// Оплата заказа.
+//
+// POST /api/v1/orders/{order_uuid}/cancel
+func (UnimplementedHandler) CancelOrder(ctx context.Context, params CancelOrderParams) (r CancelOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateOrder implements CreateOrder operation.
 //
 // Создание заказа.

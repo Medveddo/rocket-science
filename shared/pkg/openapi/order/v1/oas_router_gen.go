@@ -98,26 +98,62 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				switch elem[0] {
-				case '/': // Prefix: "/pay"
+				case '/': // Prefix: "/"
 
-					if l := len("/pay"); len(elem) >= l && elem[0:l] == "/pay" {
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						// Leaf node.
-						switch r.Method {
-						case "POST":
-							s.handlePayOrderRequest([1]string{
-								args[0],
-							}, elemIsEscaped, w, r)
-						default:
-							s.notAllowed(w, r, "POST")
+						break
+					}
+					switch elem[0] {
+					case 'c': // Prefix: "cancel"
+
+						if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
+							elem = elem[l:]
+						} else {
+							break
 						}
 
-						return
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleCancelOrderRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "POST")
+							}
+
+							return
+						}
+
+					case 'p': // Prefix: "pay"
+
+						if l := len("pay"); len(elem) >= l && elem[0:l] == "pay" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handlePayOrderRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "POST")
+							}
+
+							return
+						}
+
 					}
 
 				}
@@ -259,28 +295,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					}
 				}
 				switch elem[0] {
-				case '/': // Prefix: "/pay"
+				case '/': // Prefix: "/"
 
-					if l := len("/pay"); len(elem) >= l && elem[0:l] == "/pay" {
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						// Leaf node.
-						switch method {
-						case "POST":
-							r.name = PayOrderOperation
-							r.summary = "Оплата заказа"
-							r.operationID = "PayOrder"
-							r.pathPattern = "/api/v1/orders/{order_uuid}/pay"
-							r.args = args
-							r.count = 1
-							return r, true
-						default:
-							return
+						break
+					}
+					switch elem[0] {
+					case 'c': // Prefix: "cancel"
+
+						if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
+							elem = elem[l:]
+						} else {
+							break
 						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = CancelOrderOperation
+								r.summary = "Оплата заказа"
+								r.operationID = "CancelOrder"
+								r.pathPattern = "/api/v1/orders/{order_uuid}/cancel"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
+					case 'p': // Prefix: "pay"
+
+						if l := len("pay"); len(elem) >= l && elem[0:l] == "pay" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = PayOrderOperation
+								r.summary = "Оплата заказа"
+								r.operationID = "PayOrder"
+								r.pathPattern = "/api/v1/orders/{order_uuid}/pay"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
 					}
 
 				}

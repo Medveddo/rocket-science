@@ -186,6 +186,42 @@ func (h *OrderHandler) GetOrder(ctx context.Context, params orderV1.GetOrderPara
 	return resp, nil
 }
 
+func (h *OrderHandler) CancelOrder(ctx context.Context, params orderV1.CancelOrderParams) (orderV1.CancelOrderRes, error) {
+	h.storage.mu.Lock()
+	defer h.storage.mu.Unlock()
+
+	order, ok := h.storage.orders[params.OrderUUID]
+	if !ok {
+		return &orderV1.NotFoundError{
+			Code:    404,
+			Message: "Order with UUID: '" + params.OrderUUID + "' not found",
+		}, nil
+	}
+
+	switch order.Status {
+	case orderV1.OrderStatusPENDINGPAYMENT:
+		// Меняем статус на CANCELLED
+		order.Status = orderV1.OrderStatusCANCELLED
+
+		// Возвращаем 204 No Content (nil, nil)
+		return &orderV1.CancelOrderNoContent{}, nil
+
+	case orderV1.OrderStatusPAID:
+		// Заказ уже оплачен, отменить нельзя
+		return &orderV1.ConflictError{
+			Code:    409,
+			Message: "Order already paid and cannot be cancelled",
+		}, nil
+
+	default:
+		// Для других статусов можно вернуть 404 или 409, в зависимости от логики
+		return &orderV1.BadRequestError{
+			Code:    400,
+			Message: "Order cannot be cancelled in its current status",
+		}, nil
+	}
+}
+
 // NewError создает новую ошибку в формате GenericError
 func (h *OrderHandler) NewError(_ context.Context, err error) *orderV1.GenericErrorStatusCode {
 	return &orderV1.GenericErrorStatusCode{

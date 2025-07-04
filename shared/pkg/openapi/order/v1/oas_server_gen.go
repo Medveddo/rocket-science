@@ -8,6 +8,12 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// CancelOrder implements CancelOrder operation.
+	//
+	// Оплата заказа.
+	//
+	// POST /api/v1/orders/{order_uuid}/cancel
+	CancelOrder(ctx context.Context, params CancelOrderParams) (CancelOrderRes, error)
 	// CreateOrder implements CreateOrder operation.
 	//
 	// Создание заказа.

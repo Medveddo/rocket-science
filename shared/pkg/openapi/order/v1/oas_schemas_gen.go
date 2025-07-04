@@ -41,8 +41,44 @@ func (s *BadRequestError) SetMessage(val string) {
 	s.Message = val
 }
 
+func (*BadRequestError) cancelOrderRes() {}
 func (*BadRequestError) createOrderRes() {}
 func (*BadRequestError) payOrderRes()    {}
+
+// CancelOrderNoContent is response for CancelOrder operation.
+type CancelOrderNoContent struct{}
+
+func (*CancelOrderNoContent) cancelOrderRes() {}
+
+// Ref: #/components/schemas/conflict_error
+type ConflictError struct {
+	// HTTP-код ошибки.
+	Code int `json:"code"`
+	// Описание ошибки.
+	Message string `json:"message"`
+}
+
+// GetCode returns the value of Code.
+func (s *ConflictError) GetCode() int {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ConflictError) GetMessage() string {
+	return s.Message
+}
+
+// SetCode sets the value of Code.
+func (s *ConflictError) SetCode(val int) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ConflictError) SetMessage(val string) {
+	s.Message = val
+}
+
+func (*ConflictError) cancelOrderRes() {}
 
 // Ref: #/components/schemas/create_order_request
 type CreateOrderRequest struct {
@@ -184,6 +220,7 @@ func (s *InternalServerError) SetMessage(val string) {
 	s.Message = val
 }
 
+func (*InternalServerError) cancelOrderRes() {}
 func (*InternalServerError) createOrderRes() {}
 func (*InternalServerError) getOrderRes()    {}
 func (*InternalServerError) payOrderRes()    {}
@@ -216,8 +253,9 @@ func (s *NotFoundError) SetMessage(val string) {
 	s.Message = val
 }
 
-func (*NotFoundError) getOrderRes() {}
-func (*NotFoundError) payOrderRes() {}
+func (*NotFoundError) cancelOrderRes() {}
+func (*NotFoundError) getOrderRes()    {}
+func (*NotFoundError) payOrderRes()    {}
 
 // NewOptInt returns new OptInt with value set to v.
 func NewOptInt(v int) OptInt {
