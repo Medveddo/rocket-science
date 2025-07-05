@@ -70,8 +70,8 @@ func (s *OrderStorage) UpdateOrder(order *orderV1.OrderDto) error {
 
 type OrderHandler struct {
 	inventoryClient inventoryV1.InventoryServiceClient
-	paymentClient paymentV1.PaymentServiceClient
-	storage       *OrderStorage
+	paymentClient   paymentV1.PaymentServiceClient
+	storage         *OrderStorage
 }
 
 func NewOrderHandler(
@@ -81,35 +81,34 @@ func NewOrderHandler(
 ) *OrderHandler {
 	return &OrderHandler{
 		inventoryClient: inventoryClient,
-		paymentClient: paymentClient,
-		storage:       storage,
+		paymentClient:   paymentClient,
+		storage:         storage,
 	}
 }
 
 func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrderRequest) (orderV1.CreateOrderRes, error) {
 	orderUuid := uuid.New()
 
-    partUUIDs := make([]string, len(req.PartUuids))
-    for i, partUUID := range req.PartUuids {
-        partUUIDs[i] = partUUID.String()
-    }
-	
+	partUUIDs := make([]string, len(req.PartUuids))
+	for i, partUUID := range req.PartUuids {
+		partUUIDs[i] = partUUID.String()
+	}
+
 	listPartsResponse, err := h.inventoryClient.ListParts(ctx, &inventoryV1.ListPartsRequest{
 		Filter: &inventoryV1.PartsFilter{
 			Uuids: partUUIDs,
 		},
 	})
-	
 	if err != nil {
 		return &orderV1.InternalServerError{
 			Code:    500,
 			Message: "failed to fetch inventory service",
 		}, err
 	}
-	
+
 	parts := listPartsResponse.GetParts()
 
-	if (len(parts) != len(req.PartUuids)) {
+	if len(parts) != len(req.PartUuids) {
 
 		returned := make(map[string]struct{}, len(parts))
 		for _, part := range parts {
@@ -130,11 +129,18 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrder
 		}, nil
 	}
 
+	var totalPrice float64
+	for _, part := range parts {
+		totalPrice += part.GetPrice()
+	}
+
+	_ = totalPrice
 	order := &orderV1.OrderDto{
-		UserUUID:  req.UserUUID,
-		OrderUUID: orderUuid,
-		PartUuids: req.PartUuids,
-		Status:    orderV1.OrderStatusPENDINGPAYMENT,
+		UserUUID:   req.UserUUID,
+		OrderUUID:  orderUuid,
+		PartUuids:  req.PartUuids,
+		Status:     orderV1.OrderStatusPENDINGPAYMENT,
+		TotalPrice: totalPrice,
 	}
 	err = h.storage.UpdateOrder(order)
 	if err != nil {
@@ -142,7 +148,7 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *orderV1.CreateOrder
 	}
 	response := &orderV1.CreateOrderResponse{
 		OrderUUID:  order.OrderUUID,
-		TotalPrice: 10,
+		TotalPrice: float32(order.TotalPrice),
 	}
 	return response, nil
 }
@@ -289,7 +295,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to Payment Service: %v\n", err)
 	}
-	
+
 	inventoryConn, err := grpc.NewClient(
 		"localhost:50051",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -305,7 +311,7 @@ func main() {
 	inventoryClient := inventoryV1.NewInventoryServiceClient(inventoryConn)
 
 	// Создаем обработчик API погоды
-	orderHandler := NewOrderHandler(storage, paymentClient, inventoryClient)
+	orderHandler := NewOrderHandler(inventoryClient, paymentClient, storage)
 
 	// Создаем OpenAPI сервер
 	orderServer, err := orderV1.NewServer(orderHandler)

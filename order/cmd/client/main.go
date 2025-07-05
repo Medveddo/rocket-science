@@ -40,6 +40,11 @@ func main() {
 		log.Printf("❌ Неожиданный тип ответа: %T\n", response)
 		return
 	}
+	log.Println(orderOK.TotalPrice, "TotalPrice")
+	if orderOK.TotalPrice == 0 {
+		log.Printf("❌ Сумма заказа равна нулю: %v\n", orderOK.TotalPrice)
+		return
+	}
 
 	pay_response, err := client.PayOrder(ctx, &orderV1.PayOrderRequest{
 		PaymentMethod: orderV1.PayOrderRequestPaymentMethodSBP,
