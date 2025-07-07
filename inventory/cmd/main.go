@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"slices"
@@ -12,8 +14,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -22,7 +26,10 @@ import (
 	inventoryV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/inventory/v1"
 )
 
-const grpcPort = 50051
+const (
+	grpcPort = 50051
+	httpPort = 8081
+)
 
 type inventoryService struct {
 	inventoryV1.UnimplementedInventoryServiceServer
@@ -99,6 +106,10 @@ func NewInventoryService() *inventoryService {
 }
 
 func (s *inventoryService) GetPart(_ context.Context, request *inventoryV1.GetPartRequest) (*inventoryV1.GetPartResponse, error) {
+	err := request.Validate()
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -114,6 +125,16 @@ func (s *inventoryService) GetPart(_ context.Context, request *inventoryV1.GetPa
 
 func (s *inventoryService) ListParts(_ context.Context, request *inventoryV1.ListPartsRequest) (*inventoryV1.ListPartsResponse, error) {
 	parts := []*inventoryV1.Part{}
+
+	if request.Filter == nil {
+		parts = make([]*inventoryV1.Part, 0, len(s.parts))
+		for _, v := range s.parts {
+			parts = append(parts, v)
+		}
+		return &inventoryV1.ListPartsResponse{
+			Parts: parts,
+		}, nil
+	}
 
 	for _, v := range s.parts {
 		// Если передан фильтр по UUID
@@ -191,6 +212,69 @@ func main() {
 		err = s.Serve(lis)
 		if err != nil {
 			log.Printf("failed to serve: %v\n", err)
+			return
+		}
+	}()
+
+	// Запускаем HTTP сервер с gRPC Gateway и Swagger UI
+	var gwServer *http.Server
+	go func() {
+		// Создаем контекст с отменой
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Создаем мультиплексор для HTTP запросов
+		mux := runtime.NewServeMux()
+
+		// Настраиваем опции для соединения с gRPC сервером
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+
+		// Регистрируем gRPC-gateway хендлеры
+		err = inventoryV1.RegisterInventoryServiceHandlerFromEndpoint(
+			ctx,
+			mux,
+			fmt.Sprintf("localhost:%d", grpcPort),
+			opts,
+		)
+		if err != nil {
+			log.Printf("Failed to register gateway: %v\n", err)
+			return
+		}
+
+		// Создаем файловый сервер для swagger-ui
+		fileServer := http.FileServer(http.Dir("api"))
+
+		// Создаем HTTP маршрутизатор
+		httpMux := http.NewServeMux()
+
+		// Регистрируем API эндпоинты
+		httpMux.Handle("/api/", mux)
+
+		// Swagger UI эндпоинты
+		httpMux.Handle("/swagger-ui.html", fileServer)
+		httpMux.Handle("/swagger.json", fileServer)
+
+		// Редирект с корня на Swagger UI
+		httpMux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/" {
+				http.Redirect(w, r, "/swagger-ui.html", http.StatusMovedPermanently)
+				return
+			}
+			fileServer.ServeHTTP(w, r)
+		}))
+
+		// Создаем HTTP сервер
+		gwServer = &http.Server{
+			Addr:              fmt.Sprintf(":%d", httpPort),
+			Handler:           httpMux,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+
+		// Запускаем HTTP сервер
+		log.Printf("🌐 HTTP server with gRPC-Gateway and Swagger UI listening on %d\n", httpPort)
+		err = gwServer.ListenAndServe()
+		if err != nil && errors.Is(err, http.ErrServerClosed) {
+			log.Printf("Failed to serve HTTP: %v\n", err)
 			return
 		}
 	}()

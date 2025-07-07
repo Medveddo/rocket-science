@@ -12,6 +12,9 @@ vars:
   OGEN_VERSION: 'v1.12.0'
   YQ_VERSION: 'v4.45.2'
   GRPCURL_VERSION: 'v1.9.3'
+  PROTOC_GEN_GRPC_GATEWAY_VERSION: 'v2.26.3'
+  PROTOC_GEN_VALIDATE_VERSION: 'v1.2.1'
+  PROTOC_GEN_OPENAPIV2_VERSION: 'v2.26.3'
 
   BIN_DIR: '{{.ROOT_DIR}}/bin'
   GOLANGCI_LINT: '{{.BIN_DIR}}/golangci-lint'
@@ -23,6 +26,9 @@ vars:
   PROTOC_GEN_GO: '{{.BIN_DIR}}/protoc-gen-go'
   PROTOC_GEN_GO_GRPC: '{{.BIN_DIR}}/protoc-gen-go-grpc'
   GRPCURL: '{{.BIN_DIR}}/grpcurl'
+  PROTOC_GEN_GRPC_GATEWAY: '{{.BIN_DIR}}/protoc-gen-grpc-gateway'
+  PROTOC_GEN_VALIDATE: '{{.BIN_DIR}}/protoc-gen-validate'
+  PROTOC_GEN_OPENAPIV2: '{{.BIN_DIR}}/protoc-gen-openapiv2'
 
   NODE_MODULES_DIR: '{{.ROOT_DIR}}/node_modules/.bin'
   REDOCLY: '{{.NODE_MODULES_DIR}}/redocly'
@@ -158,16 +164,37 @@ tasks:
           echo '📦 Installing protoc-gen-go-grpc...'
           GOBIN={{.BIN_DIR}} go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@{{.PROTOC_GEN_GO_GRPC_VERSION}}
         }
+        [ -f {{.PROTOC_GEN_GRPC_GATEWAY}} ] || {
+          echo '📦 Installing protoc-gen-grpc-gateway...'
+          GOBIN={{.BIN_DIR}} go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@{{.PROTOC_GEN_GRPC_GATEWAY_VERSION}}
+        }
+        [ -f {{.PROTOC_GEN_VALIDATE}} ] || {
+          echo '📦 Installing protoc-gen-validate...'
+          GOBIN={{.BIN_DIR}} go install github.com/envoyproxy/protoc-gen-validate@{{.PROTOC_GEN_VALIDATE_VERSION}}
+        }
+        [ -f {{.PROTOC_GEN_OPENAPIV2}} ] || {
+          echo '📦 Installing protoc-gen-openapiv2...'
+          GOBIN={{.BIN_DIR}} go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@{{.PROTOC_GEN_OPENAPIV2_VERSION}}
+        }
+
+  proto:update-deps:
+    deps: [ install-buf ]
+    desc: Обновляет зависимости protobuf из удаленных репозиториев (googleapis и т.д.)
+    dir: shared/proto
+    cmds:
+      - |
+        echo "🔄 Обновляем зависимости buf..."
+        {{.BUF}} dep update
 
   proto:gen:
-    deps: [ install-buf, proto:install-plugins, proto:lint ]
+    deps: [ install-buf, proto:install-plugins, proto:lint, proto:update-deps ]
     desc: Генерация Go-кода из .proto
     dir: shared/proto
     cmds:
       - '{{.BUF}} generate'
 
   proto:lint:
-    deps: [ install-buf, proto:install-plugins ]
+    deps: [ install-buf, proto:install-plugins, proto:update-deps ]
     desc: Проверка .proto-файлов на соответствие стилю
     dir: shared/proto
     cmds:
@@ -456,3 +483,18 @@ tasks:
         
         echo
         echo "🎉 Все тесты API успешно выполнены!"
+
+  setup-swagger:
+    desc: Ensure directories exist, copy swagger files, and update UI references for inventory and payment services
+    cmds:
+      - mkdir -p inventory/api
+      - mkdir -p payment/api
+
+      - cp shared/api/gen/inventory/v1/inventory.swagger.json inventory/api/inventory.swagger.json
+      - cp shared/api/gen/payment/v1/payment.swagger.json payment/api/payment.swagger.json
+
+      - cp shared/api/swagger/swagger-ui.html inventory/api/swagger-ui.html
+      - cp shared/api/swagger/swagger-ui.html payment/api/swagger-ui.html
+
+      - sed -i 's/swagger.json/inventory.swagger.json/g' inventory/api/swagger-ui.html
+      - sed -i 's/swagger.json/payment.swagger.json/g' payment/api/swagger-ui.html

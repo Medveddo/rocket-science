@@ -2,13 +2,14 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: payment/v1/inventory.proto
+// source: payment/v1/payment.proto
 
 // Package payment.v1 содержит API для работы с сервисом Payment
 
 package payment_v1
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -63,11 +64,11 @@ func (x PaymentMethod) String() string {
 }
 
 func (PaymentMethod) Descriptor() protoreflect.EnumDescriptor {
-	return file_payment_v1_inventory_proto_enumTypes[0].Descriptor()
+	return file_payment_v1_payment_proto_enumTypes[0].Descriptor()
 }
 
 func (PaymentMethod) Type() protoreflect.EnumType {
-	return &file_payment_v1_inventory_proto_enumTypes[0]
+	return &file_payment_v1_payment_proto_enumTypes[0]
 }
 
 func (x PaymentMethod) Number() protoreflect.EnumNumber {
@@ -76,7 +77,7 @@ func (x PaymentMethod) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PaymentMethod.Descriptor instead.
 func (PaymentMethod) EnumDescriptor() ([]byte, []int) {
-	return file_payment_v1_inventory_proto_rawDescGZIP(), []int{0}
+	return file_payment_v1_payment_proto_rawDescGZIP(), []int{0}
 }
 
 // Запрос на оплату заказа
@@ -91,7 +92,7 @@ type PayOrderRequest struct {
 
 func (x *PayOrderRequest) Reset() {
 	*x = PayOrderRequest{}
-	mi := &file_payment_v1_inventory_proto_msgTypes[0]
+	mi := &file_payment_v1_payment_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -103,7 +104,7 @@ func (x *PayOrderRequest) String() string {
 func (*PayOrderRequest) ProtoMessage() {}
 
 func (x *PayOrderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_payment_v1_inventory_proto_msgTypes[0]
+	mi := &file_payment_v1_payment_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -116,7 +117,7 @@ func (x *PayOrderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PayOrderRequest.ProtoReflect.Descriptor instead.
 func (*PayOrderRequest) Descriptor() ([]byte, []int) {
-	return file_payment_v1_inventory_proto_rawDescGZIP(), []int{0}
+	return file_payment_v1_payment_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *PayOrderRequest) GetOrderUuid() string {
@@ -150,7 +151,7 @@ type PayOrderResponse struct {
 
 func (x *PayOrderResponse) Reset() {
 	*x = PayOrderResponse{}
-	mi := &file_payment_v1_inventory_proto_msgTypes[1]
+	mi := &file_payment_v1_payment_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -162,7 +163,7 @@ func (x *PayOrderResponse) String() string {
 func (*PayOrderResponse) ProtoMessage() {}
 
 func (x *PayOrderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_payment_v1_inventory_proto_msgTypes[1]
+	mi := &file_payment_v1_payment_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -175,7 +176,7 @@ func (x *PayOrderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PayOrderResponse.ProtoReflect.Descriptor instead.
 func (*PayOrderResponse) Descriptor() ([]byte, []int) {
-	return file_payment_v1_inventory_proto_rawDescGZIP(), []int{1}
+	return file_payment_v1_payment_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *PayOrderResponse) GetTransactionUuid() string {
@@ -185,12 +186,12 @@ func (x *PayOrderResponse) GetTransactionUuid() string {
 	return ""
 }
 
-var File_payment_v1_inventory_proto protoreflect.FileDescriptor
+var File_payment_v1_payment_proto protoreflect.FileDescriptor
 
-const file_payment_v1_inventory_proto_rawDesc = "" +
+const file_payment_v1_payment_proto_rawDesc = "" +
 	"\n" +
-	"\x1apayment/v1/inventory.proto\x12\n" +
-	"payment.v1\"\x8f\x01\n" +
+	"\x18payment/v1/payment.proto\x12\n" +
+	"payment.v1\x1a\x1cgoogle/api/annotations.proto\"\x8f\x01\n" +
 	"\x0fPayOrderRequest\x12\x1d\n" +
 	"\n" +
 	"order_uuid\x18\x01 \x01(\tR\torderUuid\x12\x1b\n" +
@@ -203,30 +204,30 @@ const file_payment_v1_inventory_proto_rawDesc = "" +
 	"\x13PAYMENT_METHOD_CARD\x10\x01\x12\x16\n" +
 	"\x12PAYMENT_METHOD_SBP\x10\x02\x12\x1e\n" +
 	"\x1aPAYMENT_METHOD_CREDIT_CARD\x10\x03\x12!\n" +
-	"\x1dPAYMENT_METHOD_INVESTOR_MONEY\x10\x042W\n" +
-	"\x0ePaymentService\x12E\n" +
-	"\bPayOrder\x12\x1b.payment.v1.PayOrderRequest\x1a\x1c.payment.v1.PayOrderResponseBLZJgithub.com/Medeveddo/rocket-science/shared/pkg/proto/payment/v1;payment_v1b\x06proto3"
+	"\x1dPAYMENT_METHOD_INVESTOR_MONEY\x10\x042r\n" +
+	"\x0ePaymentService\x12`\n" +
+	"\bPayOrder\x12\x1b.payment.v1.PayOrderRequest\x1a\x1c.payment.v1.PayOrderResponse\"\x19\x82\xd3\xe4\x93\x02\x13\"\x11/api/v1/order/payBLZJgithub.com/Medeveddo/rocket-science/shared/pkg/proto/payment/v1;payment_v1b\x06proto3"
 
 var (
-	file_payment_v1_inventory_proto_rawDescOnce sync.Once
-	file_payment_v1_inventory_proto_rawDescData []byte
+	file_payment_v1_payment_proto_rawDescOnce sync.Once
+	file_payment_v1_payment_proto_rawDescData []byte
 )
 
-func file_payment_v1_inventory_proto_rawDescGZIP() []byte {
-	file_payment_v1_inventory_proto_rawDescOnce.Do(func() {
-		file_payment_v1_inventory_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_payment_v1_inventory_proto_rawDesc), len(file_payment_v1_inventory_proto_rawDesc)))
+func file_payment_v1_payment_proto_rawDescGZIP() []byte {
+	file_payment_v1_payment_proto_rawDescOnce.Do(func() {
+		file_payment_v1_payment_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_payment_v1_payment_proto_rawDesc), len(file_payment_v1_payment_proto_rawDesc)))
 	})
-	return file_payment_v1_inventory_proto_rawDescData
+	return file_payment_v1_payment_proto_rawDescData
 }
 
-var file_payment_v1_inventory_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_payment_v1_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_payment_v1_inventory_proto_goTypes = []any{
+var file_payment_v1_payment_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_payment_v1_payment_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_payment_v1_payment_proto_goTypes = []any{
 	(PaymentMethod)(0),       // 0: payment.v1.PaymentMethod
 	(*PayOrderRequest)(nil),  // 1: payment.v1.PayOrderRequest
 	(*PayOrderResponse)(nil), // 2: payment.v1.PayOrderResponse
 }
-var file_payment_v1_inventory_proto_depIdxs = []int32{
+var file_payment_v1_payment_proto_depIdxs = []int32{
 	0, // 0: payment.v1.PayOrderRequest.payment_method:type_name -> payment.v1.PaymentMethod
 	1, // 1: payment.v1.PaymentService.PayOrder:input_type -> payment.v1.PayOrderRequest
 	2, // 2: payment.v1.PaymentService.PayOrder:output_type -> payment.v1.PayOrderResponse
@@ -237,27 +238,27 @@ var file_payment_v1_inventory_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_payment_v1_inventory_proto_init() }
-func file_payment_v1_inventory_proto_init() {
-	if File_payment_v1_inventory_proto != nil {
+func init() { file_payment_v1_payment_proto_init() }
+func file_payment_v1_payment_proto_init() {
+	if File_payment_v1_payment_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_payment_v1_inventory_proto_rawDesc), len(file_payment_v1_inventory_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_payment_v1_payment_proto_rawDesc), len(file_payment_v1_payment_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_payment_v1_inventory_proto_goTypes,
-		DependencyIndexes: file_payment_v1_inventory_proto_depIdxs,
-		EnumInfos:         file_payment_v1_inventory_proto_enumTypes,
-		MessageInfos:      file_payment_v1_inventory_proto_msgTypes,
+		GoTypes:           file_payment_v1_payment_proto_goTypes,
+		DependencyIndexes: file_payment_v1_payment_proto_depIdxs,
+		EnumInfos:         file_payment_v1_payment_proto_enumTypes,
+		MessageInfos:      file_payment_v1_payment_proto_msgTypes,
 	}.Build()
-	File_payment_v1_inventory_proto = out.File
-	file_payment_v1_inventory_proto_goTypes = nil
-	file_payment_v1_inventory_proto_depIdxs = nil
+	File_payment_v1_payment_proto = out.File
+	file_payment_v1_payment_proto_goTypes = nil
+	file_payment_v1_payment_proto_depIdxs = nil
 }

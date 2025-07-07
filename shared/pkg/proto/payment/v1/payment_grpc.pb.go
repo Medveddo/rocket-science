@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             (unknown)
-// source: payment/v1/inventory.proto
+// source: payment/v1/payment.proto
 
 // Package payment.v1 содержит API для работы с сервисом Payment
 
@@ -125,5 +125,5 @@ var PaymentService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "payment/v1/inventory.proto",
+	Metadata: "payment/v1/payment.proto",
 }

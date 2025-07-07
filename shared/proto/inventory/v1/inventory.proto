@@ -3,6 +3,8 @@ syntax = "proto3";
 // Package inventory.v1 содержит API для работы с сервисом Inventory
 package inventory.v1;
 
+import "google/api/annotations.proto";
+import "validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/Medeveddo/rocket-science/shared/pkg/proto/inventory/v1;inventory_v1";
@@ -10,15 +12,23 @@ option go_package = "github.com/Medeveddo/rocket-science/shared/pkg/proto/invent
 
 service InventoryService {
   // Получение данных о детали по её UUID
-  rpc GetPart(GetPartRequest) returns (GetPartResponse);
+  rpc GetPart(GetPartRequest) returns (GetPartResponse) {
+    option (google.api.http) = {
+       get: "/api/v1/part/{uuid}"
+    };
+  }
 
   // Получение списка деталей с фильтрацией
-  rpc ListParts(ListPartsRequest) returns (ListPartsResponse);
+  rpc ListParts(ListPartsRequest) returns (ListPartsResponse) {
+    option (google.api.http) = {
+       get: "/api/v1/part"
+    };
+  }
 }
 
 // Запрос на получение данных детали по UUID
 message GetPartRequest {
-  string uuid = 1;
+  string uuid = 1 [(validate.rules).string.len = 36];
 }
 
 // Ответ на запрос получения данных детали
