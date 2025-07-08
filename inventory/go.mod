@@ -6,6 +6,7 @@ replace github.com/Medveddo/rocket-science/shared => ../shared
 
 require (
 	github.com/Medveddo/rocket-science/shared v0.0.0-00010101000000-000000000000
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6

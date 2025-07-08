@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -196,6 +197,7 @@ func main() {
 	s := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			grpc.UnaryServerInterceptor(interceptor.LoggerInterceptor()),
+			recovery.UnaryServerInterceptor(),
 		),
 	)
 
