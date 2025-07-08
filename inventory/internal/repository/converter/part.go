@@ -1,0 +1,109 @@
+package converter
+
+import (
+	"github.com/Medveddo/rocket-science/inventory/internal/model"
+	repoModel "github.com/Medveddo/rocket-science/inventory/internal/repository/model"
+)
+
+// Converts domain Part to repository Part
+// nolint
+func PartToRepoPart(p *model.Part) *repoModel.Part {
+	if p == nil {
+		return nil
+	}
+	repoPart := &repoModel.Part{
+		UUID:          p.UUID,
+		Name:          p.Name,
+		Description:   p.Description,
+		Price:         p.Price,
+		StockQuantity: p.StockQuantity,
+		Category:      repoModel.Category(p.Category),
+		Tags:          p.Tags,
+		Metadata:      make(map[string]*repoModel.Value),
+		CreatedAt:     p.CreatedAt,
+		UpdatedAt:     p.UpdatedAt,
+	}
+	if p.Dimensions != nil {
+		repoPart.Dimensions = &repoModel.Dimensions{
+			Length: p.Dimensions.Length,
+			Width:  p.Dimensions.Width,
+			Height: p.Dimensions.Height,
+			Weight: p.Dimensions.Weight,
+		}
+	}
+	if p.Manufacturer != nil {
+		repoPart.Manufacturer = &repoModel.Manufacturer{
+			Name:    p.Manufacturer.Name,
+			Country: p.Manufacturer.Country,
+			Website: p.Manufacturer.Website,
+		}
+	}
+	for k, v := range p.Metadata {
+		repoPart.Metadata[k] = PartValueToRepoValue(v)
+	}
+	return repoPart
+}
+
+// Converts repository Part to domain Part
+// nolint
+func RepoPartToPart(r *repoModel.Part) *model.Part {
+	if r == nil {
+		return nil
+	}
+	part := &model.Part{
+		UUID:          r.UUID,
+		Name:          r.Name,
+		Description:   r.Description,
+		Price:         r.Price,
+		StockQuantity: r.StockQuantity,
+		Category:      model.Category(r.Category),
+		Tags:          r.Tags,
+		Metadata:      make(map[string]*model.Value),
+		CreatedAt:     r.CreatedAt,
+		UpdatedAt:     r.UpdatedAt,
+	}
+	if r.Dimensions != nil {
+		part.Dimensions = &model.Dimensions{
+			Length: r.Dimensions.Length,
+			Width:  r.Dimensions.Width,
+			Height: r.Dimensions.Height,
+			Weight: r.Dimensions.Weight,
+		}
+	}
+	if r.Manufacturer != nil {
+		part.Manufacturer = &model.Manufacturer{
+			Name:    r.Manufacturer.Name,
+			Country: r.Manufacturer.Country,
+			Website: r.Manufacturer.Website,
+		}
+	}
+	for k, v := range r.Metadata {
+		part.Metadata[k] = RepoValueToPartValue(v)
+	}
+	return part
+}
+
+// Value converters
+func PartValueToRepoValue(v *model.Value) *repoModel.Value {
+	if v == nil {
+		return nil
+	}
+	return &repoModel.Value{
+		DoubleValue: v.DoubleValue,
+		Int64Value:  v.Int64Value,
+		BoolValue:   v.BoolValue,
+		StringValue: v.StringValue,
+	}
+}
+
+func RepoValueToPartValue(v *repoModel.Value) *model.Value {
+	if v == nil {
+		return nil
+	}
+	return &model.Value{
+		DoubleValue: v.DoubleValue,
+		Int64Value:  v.Int64Value,
+		BoolValue:   v.BoolValue,
+		StringValue: v.StringValue,
+	}
+}
