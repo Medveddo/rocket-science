@@ -21,7 +21,7 @@ func (a *partAPI) ListParts(ctx context.Context, req *inventoryV1.ListPartsReque
 		Parts: make([]*inventoryV1.Part, 0, len(parts)),
 	}
 	for _, part := range parts {
-		resp.Parts = append(resp.Parts, converter.PartToProto(*part))
+		resp.Parts = append(resp.Parts, converter.PartToProto(part))
 	}
 	return resp, nil
 }

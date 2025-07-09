@@ -7,11 +7,8 @@ import (
 
 // Converts domain Part to repository Part
 // nolint
-func PartToRepoPart(p *model.Part) *repoModel.Part {
-	if p == nil {
-		return nil
-	}
-	repoPart := &repoModel.Part{
+func PartToRepoPart(p model.Part) repoModel.Part {
+	repoPart := repoModel.Part{
 		UUID:          p.UUID,
 		Name:          p.Name,
 		Description:   p.Description,
@@ -39,18 +36,16 @@ func PartToRepoPart(p *model.Part) *repoModel.Part {
 		}
 	}
 	for k, v := range p.Metadata {
-		repoPart.Metadata[k] = PartValueToRepoValue(v)
+		value := PartValueToRepoValue(*v)
+		repoPart.Metadata[k] = &value
 	}
 	return repoPart
 }
 
 // Converts repository Part to domain Part
 // nolint
-func RepoPartToPart(r *repoModel.Part) *model.Part {
-	if r == nil {
-		return nil
-	}
-	part := &model.Part{
+func RepoPartToPart(r repoModel.Part) model.Part {
+	part := model.Part{
 		UUID:          r.UUID,
 		Name:          r.Name,
 		Description:   r.Description,
@@ -78,17 +73,15 @@ func RepoPartToPart(r *repoModel.Part) *model.Part {
 		}
 	}
 	for k, v := range r.Metadata {
-		part.Metadata[k] = RepoValueToPartValue(v)
+		value := RepoValueToPartValue(*v)
+		part.Metadata[k] = &value
 	}
 	return part
 }
 
 // Value converters
-func PartValueToRepoValue(v *model.Value) *repoModel.Value {
-	if v == nil {
-		return nil
-	}
-	return &repoModel.Value{
+func PartValueToRepoValue(v model.Value) repoModel.Value {
+	return repoModel.Value{
 		DoubleValue: v.DoubleValue,
 		Int64Value:  v.Int64Value,
 		BoolValue:   v.BoolValue,
@@ -96,11 +89,8 @@ func PartValueToRepoValue(v *model.Value) *repoModel.Value {
 	}
 }
 
-func RepoValueToPartValue(v *repoModel.Value) *model.Value {
-	if v == nil {
-		return nil
-	}
-	return &model.Value{
+func RepoValueToPartValue(v repoModel.Value) model.Value {
+	return model.Value{
 		DoubleValue: v.DoubleValue,
 		Int64Value:  v.Int64Value,
 		BoolValue:   v.BoolValue,

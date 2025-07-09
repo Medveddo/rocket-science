@@ -8,10 +8,10 @@ import (
 	"github.com/Medveddo/rocket-science/inventory/internal/repository/converter"
 )
 
-func (r *partsRepository) ListParts(_ context.Context, filter *model.PartsFilter) ([]*model.Part, error) {
+func (r *partsRepository) ListParts(_ context.Context, filter *model.PartsFilter) ([]model.Part, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	var result []*model.Part
+	var result []model.Part
 
 	for _, part := range r.data {
 		if filter != nil {
@@ -40,7 +40,7 @@ func (r *partsRepository) ListParts(_ context.Context, filter *model.PartsFilter
 				}
 			}
 		}
-		part := converter.RepoPartToPart(&part)
+		part := converter.RepoPartToPart(*part)
 		result = append(result, part)
 	}
 	return result, nil

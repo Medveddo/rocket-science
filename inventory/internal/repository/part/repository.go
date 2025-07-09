@@ -13,13 +13,13 @@ var _ repo.PartRepository = (*partsRepository)(nil)
 
 type partsRepository struct {
 	mu   sync.RWMutex
-	data map[string]repoModel.Part
+	data map[string]*repoModel.Part
 }
 
 func NewRepository() *partsRepository {
 	now := time.Now()
 
-	part1 := repoModel.Part{
+	part1 := &repoModel.Part{
 		UUID:          "111e4567-e89b-12d3-a456-426614174001",
 		Name:          "Hyperdrive Engine",
 		Description:   "A class-9 hyperdrive engine capable of faster-than-light travel.",
@@ -46,7 +46,7 @@ func NewRepository() *partsRepository {
 		UpdatedAt: now,
 	}
 
-	part2 := repoModel.Part{
+	part2 := &repoModel.Part{
 		UUID:          "222e4567-e89b-12d3-a456-426614174002",
 		Name:          "Quantum Shield Generator",
 		Description:   "Advanced shield generator providing protection against cosmic radiation.",
@@ -73,7 +73,7 @@ func NewRepository() *partsRepository {
 		UpdatedAt: now,
 	}
 
-	parts := make(map[string]repoModel.Part, 2)
+	parts := make(map[string]*repoModel.Part, 2)
 
 	parts[part1.UUID] = part1
 	parts[part2.UUID] = part2

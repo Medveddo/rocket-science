@@ -22,6 +22,6 @@ func (a *partAPI) GetPart(ctx context.Context, req *inventoryV1.GetPartRequest) 
 	}
 
 	return &inventoryV1.GetPartResponse{
-		Part: converter.PartToProto(*part),
+		Part: converter.PartToProto(part),
 	}, nil
 }
