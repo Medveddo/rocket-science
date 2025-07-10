@@ -12,14 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
 
+	paymentApiV1 "github.com/Medveddo/rocket-science/payment/internal/api/payment/v1"
+	paymentService "github.com/Medveddo/rocket-science/payment/internal/service/payment"
 	"github.com/Medveddo/rocket-science/shared/pkg/interceptor"
 	paymentV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/payment/v1"
 )
@@ -28,21 +27,6 @@ const (
 	grpcPort = 50052
 	httpPort = 8082
 )
-
-type paymentService struct {
-	paymentV1.UnimplementedPaymentServiceServer
-}
-
-func (s *paymentService) PayOrder(_ context.Context, request *paymentV1.PayOrderRequest) (*paymentV1.PayOrderResponse, error) {
-	if request.PaymentMethod == paymentV1.PaymentMethod_PAYMENT_METHOD_UNSPECIFIED {
-		return nil, status.Error(codes.InvalidArgument, "invalid payment method provided")
-	}
-	transactionUUID := uuid.New()
-	log.Printf("processing request=%v with transactionUUID=%v", request, transactionUUID)
-	return &paymentV1.PayOrderResponse{
-		TransactionUuid: transactionUUID.String(),
-	}, nil
-}
 
 func main() {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
@@ -64,9 +48,10 @@ func main() {
 	)
 
 	// Регистрируем наш сервис
-	service := &paymentService{}
+	service := paymentService.NewService()
+	api := paymentApiV1.NewPaymentAPI(service)
 
-	paymentV1.RegisterPaymentServiceServer(s, service)
+	paymentV1.RegisterPaymentServiceServer(s, api)
 
 	// Включаем рефлексию для отладки
 	reflection.Register(s)
