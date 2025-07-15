@@ -9,7 +9,7 @@ import (
 	"github.com/Medveddo/rocket-science/inventory/internal/repository/mocks"
 )
 
-type APISuite struct {
+type ServiceSuite struct {
 	suite.Suite
 
 	ctx context.Context //nolint:containedctx
@@ -19,7 +19,7 @@ type APISuite struct {
 	service *partService
 }
 
-func (s *APISuite) SetupTest() {
+func (s *ServiceSuite) SetupTest() {
 	s.ctx = context.Background()
 
 	s.partRepo = mocks.NewPartRepository(s.T())
@@ -27,8 +27,8 @@ func (s *APISuite) SetupTest() {
 	s.service = NewPartService(s.partRepo)
 }
 
-func (s *APISuite) TearDownTest() {}
+func (s *ServiceSuite) TearDownTest() {}
 
 func TestPaymentAPI(t *testing.T) {
-	suite.Run(t, new(APISuite))
+	suite.Run(t, new(ServiceSuite))
 }

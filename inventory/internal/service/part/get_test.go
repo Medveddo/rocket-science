@@ -7,7 +7,7 @@ import (
 	u "github.com/Medveddo/rocket-science/inventory/internal/utils"
 )
 
-func (s *APISuite) TestGetSuccess() {
+func (s *ServiceSuite) TestGetSuccess() {
 	var (
 		partUuid = gofakeit.UUID()
 
@@ -40,13 +40,13 @@ func (s *APISuite) TestGetSuccess() {
 	)
 
 	s.partRepo.On("GetPart", s.ctx, partUuid).Return(expectedPart, nil)
-	
+
 	part, err := s.service.GetPart(s.ctx, partUuid)
 	s.Require().NoError(err)
 	s.Require().Equal(part, expectedPart)
 }
 
-func (s *APISuite) TestGetPartNotFound() {
+func (s *ServiceSuite) TestGetPartNotFound() {
 	var (
 		partUuid = gofakeit.UUID()
 
@@ -54,9 +54,9 @@ func (s *APISuite) TestGetPartNotFound() {
 	)
 
 	s.partRepo.On("GetPart", s.ctx, partUuid).Return(model.Part{}, model.ErrPartDoesNotExist)
-	
+
 	part, err := s.service.GetPart(s.ctx, partUuid)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, expectedErr)
-	s.Require().Empty(part,)
+	s.Require().Empty(part)
 }

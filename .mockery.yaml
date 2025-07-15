@@ -14,3 +14,7 @@ packages:
   github.com/Medveddo/rocket-science/inventory/internal/repository:
     config:
       include-regex: ".*Repository"
+
+  github.com/Medveddo/rocket-science/order/internal/service:
+    config:
+      include-regex: ".*Service"
