@@ -1,0 +1,20 @@
+with-expecter: true
+dir: "{{.InterfaceDir}}/mocks"
+filename: "mock_{{.InterfaceNameSnake}}.go"
+outpkg: "mocks"
+mockname: "{{.InterfaceName}}"
+resolve-type-alias: False
+issue-845-fix: True
+
+packages:
+  github.com/Medveddo/rocket-science/payment/internal/service:
+    config:
+      include-regex: ".*Service"
+
+  github.com/Medveddo/rocket-science/inventory/internal/repository:
+    config:
+      include-regex: ".*Repository"
+
+  github.com/Medveddo/rocket-science/order/internal/service:
+    config:
+      include-regex: ".*Service"
