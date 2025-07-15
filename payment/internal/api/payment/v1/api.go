@@ -5,11 +5,11 @@ import (
 	paymentV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/payment/v1"
 )
 
-type PaymentAPI struct {
+type paymentAPI struct {
 	paymentV1.UnimplementedPaymentServiceServer
 	Service service.PaymentService
 }
 
-func NewPaymentAPI(svc service.PaymentService) *PaymentAPI {
-	return &PaymentAPI{Service: svc}
+func NewPaymentAPI(svc service.PaymentService) *paymentAPI {
+	return &paymentAPI{Service: svc}
 }

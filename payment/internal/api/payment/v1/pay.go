@@ -12,7 +12,7 @@ import (
 	paymentV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/payment/v1"
 )
 
-func (a *PaymentAPI) PayOrder(ctx context.Context, req *paymentV1.PayOrderRequest) (*paymentV1.PayOrderResponse, error) {
+func (a *paymentAPI) PayOrder(ctx context.Context, req *paymentV1.PayOrderRequest) (*paymentV1.PayOrderResponse, error) {
 	internalReq := converter.FromProtoPayOrderRequest(req)
 	res, err := a.Service.PayOrder(ctx, internalReq)
 	if err != nil {
