@@ -45,6 +45,8 @@ vars:
 
   MODULES: assembly inventory order payment platform iam notification
 
+  DOCKER_NETWORK: 'rocket_science_network'
+
 tasks:
   install-formatters:
     desc: "Устанавливает форматтеры gci и gofumpt в ./bin"
@@ -607,7 +609,46 @@ tasks:
         for mod in {{.MODULES}}; do
           if [ -d "$mod" ]; then
             echo "🧪 Тестируем модуль $mod"
-            go test -v ./$mod/... || ERR=1
+            go test ./$mod/... || ERR=1
           fi
         done
         exit $ERR
+
+  docker:network-create:
+    desc: "Создает docker сеть к которой подключатся все сервисы"
+    cmds:
+      - docker network create {{.DOCKER_NETWORK}}
+
+  docker:network-rm:
+    desc: "Создает docker сеть к которой подключатся все сервисы"
+    cmds:
+      - docker network rm {{.DOCKER_NETWORK}}
+
+  up-inventory:
+    desc: Поднять Inventory сервис и все его зависимости
+    dir: deploy/compose/inventory
+    cmds:
+      - echo "[task] 📦 Поднимаем Inventory с зависимостями"
+      - docker compose --env-file ../../../.env up --build --detach 
+
+  down-inventory:
+    desc: Остановить и удалить Inventory сервис и все его зависимости
+    dir: deploy/compose/inventory
+    cmds:
+      - echo "[task] 🛑 Останавливаем Inventory с зависимостями"
+      - docker compose down --volumes
+
+  run-inventory:
+    dir: inventory
+    cmds:
+      - go run cmd/main.go
+
+  run-payment:
+    dir: payment
+    cmds:
+      - go run cmd/main.go
+  
+  run-order:
+    dir: order
+    cmds:
+      - go run cmd/main.go

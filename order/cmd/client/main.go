@@ -25,19 +25,23 @@ func main() {
 
 	response, err := client.CreateOrder(ctx, &orderV1.CreateOrderRequest{
 		UserUUID: uuid.MustParse(gofakeit.UUID()),
-		PartUuids: []uuid.UUID{
-			uuid.MustParse("111e4567-e89b-12d3-a456-426614174001"),
-			uuid.MustParse("222e4567-e89b-12d3-a456-426614174002"),
+		PartUuids: []string{
+			"111e4567-e89b-12d3-a456-426614174001",
+			"222e4567-e89b-12d3-a456-426614174002",
 		},
 	})
 	if err != nil {
 		log.Printf("❌ Ошибка при создании заказа: %v\n", err)
 		return
 	}
-
+	log.Println(response)
 	orderOK, ok := response.(*orderV1.CreateOrderResponse)
 	if !ok {
 		log.Printf("❌ Неожиданный тип ответа: %T\n", response)
+		return
+	}
+	if orderOK.GetOrderUUID().String() == "" {
+		log.Printf("❌ Путой UUID Заказа: %T\n", response)
 		return
 	}
 	log.Println(orderOK.TotalPrice, "TotalPrice")
