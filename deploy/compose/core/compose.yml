@@ -1,0 +1,12 @@
+services:
+  placeholder:
+    image: alpine
+    command:
+      ["sh", "-c", "echo 'This is a placeholder service' && sleep infinity"]
+    networks:
+      - rocket_science_network
+
+networks:
+  rocket_science_network:
+    name: rocket_science_network
+    external: false

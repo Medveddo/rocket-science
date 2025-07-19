@@ -7,7 +7,7 @@ import (
 type Order struct {
 	OrderUUID       uuid.UUID
 	UserUUID        uuid.UUID
-	PartUUIDs       []uuid.UUID
+	PartUUIDs       []string
 	TotalPrice      float64
 	TransactionUUID *uuid.UUID
 	PaymentMethod   *string

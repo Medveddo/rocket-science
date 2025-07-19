@@ -1,8 +1,14 @@
 package part
 
 import (
-	"sync"
+	"context"
+	"log"
+	// "sync"
 	"time"
+
+	// "go.mongodb.org/mongo-driver/bson"
+	// "go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	repo "github.com/Medveddo/rocket-science/inventory/internal/repository"
 	repoModel "github.com/Medveddo/rocket-science/inventory/internal/repository/model"
@@ -12,15 +18,22 @@ import (
 var _ repo.PartRepository = (*partsRepository)(nil)
 
 type partsRepository struct {
-	mu   sync.RWMutex
-	data map[string]*repoModel.Part
+	collection *mongo.Collection
 }
 
-func NewRepository() *partsRepository {
+func NewPartRepository(db *mongo.Database) (*partsRepository, error) {
+	ctx := context.Background()
+	collection := db.Collection("parts")
+
+	err := collection.Drop(ctx)
+	if err != nil {
+		log.Printf("cannot drop parts collection: %v\n", err)
+		return nil, err
+	}
+
 	now := time.Now()
 
 	part1 := &repoModel.Part{
-		UUID:          "111e4567-e89b-12d3-a456-426614174001",
 		Name:          "Hyperdrive Engine",
 		Description:   "A class-9 hyperdrive engine capable of faster-than-light travel.",
 		Price:         450000.00,
@@ -47,7 +60,6 @@ func NewRepository() *partsRepository {
 	}
 
 	part2 := &repoModel.Part{
-		UUID:          "222e4567-e89b-12d3-a456-426614174002",
 		Name:          "Quantum Shield Generator",
 		Description:   "Advanced shield generator providing protection against cosmic radiation.",
 		Price:         175000.00,
@@ -73,12 +85,19 @@ func NewRepository() *partsRepository {
 		UpdatedAt: now,
 	}
 
-	parts := make(map[string]*repoModel.Part, 2)
+	parts := make([]any, 0, 2)
+	parts = append(parts, part1)
+	parts = append(parts, part2)
 
-	parts[part1.UUID] = part1
-	parts[part2.UUID] = part2
+	result, err := collection.InsertMany(ctx, parts)
+	if err != nil {
+		log.Println("error while inserting parts in collection")
+		return nil, err
+	}
+
+	log.Printf("inserted parts in collection: %v", len(result.InsertedIDs))
 
 	return &partsRepository{
-		data: parts,
-	}
+		collection: collection,
+	}, nil
 }

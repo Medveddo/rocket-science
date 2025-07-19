@@ -7,7 +7,7 @@ import (
 type Order struct {
 	OrderUUID       uuid.UUID
 	UserUUID        uuid.UUID
-	PartUUIDs       []uuid.UUID
+	PartUUIDs       []string
 	TotalPrice      float64
 	TransactionUUID *uuid.UUID
 	PaymentMethod   *PayOrderRequestPaymentMethod
@@ -42,7 +42,7 @@ const (
 
 type CreateOrderRequest struct {
 	UserUUID  uuid.UUID
-	PartUuids []uuid.UUID
+	PartUuids []string
 }
 
 type CreateOrderResponse struct {

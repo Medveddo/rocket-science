@@ -18,7 +18,6 @@ properties:
     type: array
     items:
       type: string
-      format: uuid
     description: Список UUID деталей
   total_price:
     type: number

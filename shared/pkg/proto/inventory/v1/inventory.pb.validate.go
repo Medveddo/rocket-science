@@ -57,10 +57,10 @@ func (m *GetPartRequest) validate(all bool) error {
 
 	var errors []error
 
-	if utf8.RuneCountInString(m.GetUuid()) != 36 {
+	if utf8.RuneCountInString(m.GetUuid()) != 24 {
 		err := GetPartRequestValidationError{
 			field:  "Uuid",
-			reason: "value length must be 36 runes",
+			reason: "value length must be 24 runes",
 		}
 		if !all {
 			return err
