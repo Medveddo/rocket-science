@@ -1,21 +1,25 @@
 package order
 
 import (
-	"sync"
+	sq "github.com/Masterminds/squirrel"
+	// repoModel "github.com/Medveddo/rocket-science/order/internal/repository/model"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Medveddo/rocket-science/order/internal/repository"
-	repoModel "github.com/Medveddo/rocket-science/order/internal/repository/model"
 )
 
 var _ repository.OrderRepository = (*orderRepository)(nil)
 
 type orderRepository struct {
-	mu     sync.RWMutex
-	orders map[string]*repoModel.Order
+	pool      *pgxpool.Pool
+	psql      sq.StatementBuilderType
+	tableName string
 }
 
-func NewOrderRepository() *orderRepository {
+func NewOrderRepository(pool *pgxpool.Pool) *orderRepository {
 	return &orderRepository{
-		orders: make(map[string]*repoModel.Order),
+		pool:      pool,
+		tableName: "orders",
+		psql:      sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
 	}
 }

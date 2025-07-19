@@ -28,6 +28,11 @@ func (a *orderApi) PayOrder(ctx context.Context, req *orderV1.PayOrderRequest, p
 				Message: fmt.Sprintf("Payment method %v is not supported", req.PaymentMethod),
 			}, nil
 		}
+
+		return &orderV1.InternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, err
 	}
 
 	apiResponse := converter.PayOrderResponseToAPI(response)

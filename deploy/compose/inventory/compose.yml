@@ -1,5 +1,5 @@
 services:
-  mongo-grpc:
+  mongo-inventory:
     image: mongo:7.0.5
     container_name: mongo-inventory
 
