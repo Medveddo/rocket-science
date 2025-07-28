@@ -19,6 +19,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	orderApiV1 "github.com/Medveddo/rocket-science/order/internal/api/order/v1"
+	inventoryClientV1 "github.com/Medveddo/rocket-science/order/internal/client/grpc/inventory/v1"
+	paymentClientV1 "github.com/Medveddo/rocket-science/order/internal/client/grpc/payment/v1"
 	orderRepository "github.com/Medveddo/rocket-science/order/internal/repository/order"
 	orderService "github.com/Medveddo/rocket-science/order/internal/service/order"
 	orderV1 "github.com/Medveddo/rocket-science/shared/pkg/openapi/order/v1"
@@ -80,8 +82,11 @@ func main() {
 	// to warm up channels
 	conn.Connect()
 
-	paymentClient := paymentV1.NewPaymentServiceClient(conn)
-	inventoryClient := inventoryV1.NewInventoryServiceClient(inventoryConn)
+	paymentProtoClient := paymentV1.NewPaymentServiceClient(conn)
+	inventoryProtoClient := inventoryV1.NewInventoryServiceClient(inventoryConn)
+
+	paymentClient := paymentClientV1.NewPaymentClientV1(paymentProtoClient)
+	inventoryClient := inventoryClientV1.NewInventoryClientV1(inventoryProtoClient)
 
 	repository := orderRepository.NewOrderRepository(pool)
 	service := orderService.NewOrderService(repository, inventoryClient, paymentClient)

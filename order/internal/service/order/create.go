@@ -8,25 +8,20 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Medveddo/rocket-science/order/internal/model"
-	inventoryV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/inventory/v1"
 )
 
 func (s *orderService) CreateOrder(ctx context.Context, request model.CreateOrderRequest) (model.CreateOrderResponse, error) {
-	listPartsResponse, err := s.inventoryClient.ListParts(ctx, &inventoryV1.ListPartsRequest{
-		Filter: &inventoryV1.PartsFilter{
-			Uuids: request.PartUuids,
-		},
+	parts, err := s.inventoryClient.ListParts(ctx, model.PartsFilter{
+		UUIDs: request.PartUuids,
 	})
 	if err != nil {
 		log.Printf("error while fetching inventory: %v\n", err)
 		return model.CreateOrderResponse{}, model.ErrFailedToFetchInventory
 	}
 
-	parts := listPartsResponse.GetParts()
-
 	returned := make(map[string]struct{}, len(parts))
 	for _, part := range parts {
-		returned[part.GetUuid()] = struct{}{}
+		returned[part.UUID] = struct{}{}
 	}
 
 	var missing []string
@@ -42,7 +37,7 @@ func (s *orderService) CreateOrder(ctx context.Context, request model.CreateOrde
 
 	var totalPrice float64
 	for _, part := range parts {
-		totalPrice += part.GetPrice()
+		totalPrice += part.Price
 	}
 
 	orderUuid := uuid.New()
