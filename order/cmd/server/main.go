@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,13 +13,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	orderApiV1 "github.com/Medveddo/rocket-science/order/internal/api/order/v1"
 	inventoryClientV1 "github.com/Medveddo/rocket-science/order/internal/client/grpc/inventory/v1"
 	paymentClientV1 "github.com/Medveddo/rocket-science/order/internal/client/grpc/payment/v1"
+	"github.com/Medveddo/rocket-science/order/internal/config"
 	orderRepository "github.com/Medveddo/rocket-science/order/internal/repository/order"
 	orderService "github.com/Medveddo/rocket-science/order/internal/service/order"
 	orderV1 "github.com/Medveddo/rocket-science/shared/pkg/openapi/order/v1"
@@ -28,27 +27,18 @@ import (
 	paymentV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/payment/v1"
 )
 
-const (
-	httpPort = "8080"
-	// Таймауты для HTTP-сервера
-	readHeaderTimeout = 5 * time.Second
-	shutdownTimeout   = 10 * time.Second
-)
+const configPath = "../deploy/compose/order/.env"
 
 func main() {
 	ctx := context.Background()
-	err := godotenv.Load("../.env")
+
+	err := config.Load(configPath)
 	if err != nil {
-		log.Printf("cannot load environment file: %v\n", err)
+		log.Printf("cannot load config: %v\n", err)
 		return
 	}
 
-	dbURI := os.Getenv("POSTGRES_URI")
-	if dbURI == "" {
-		log.Printf("error: got empty MONGO_URI variable \n")
-		return
-	}
-
+	dbURI := config.AppConfig().PostgreSQL.URI()
 	pool, err := pgxpool.New(ctx, dbURI)
 	if err != nil {
 		log.Printf("failed to connect to database: %v\n", err)
@@ -62,7 +52,7 @@ func main() {
 	}
 
 	conn, err := grpc.NewClient(
-		"localhost:50052",
+		config.AppConfig().PaymentGRPC.Address(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -71,7 +61,7 @@ func main() {
 	}
 
 	inventoryConn, err := grpc.NewClient(
-		"localhost:50051",
+		config.AppConfig().InventoryGRPC.Address(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -112,8 +102,10 @@ func main() {
 	r.Mount("/", orderServer)
 
 	// Запускаем HTTP-сервер
+	httpAddress := config.AppConfig().HTTP.Address()
+	readHeaderTimeout := config.AppConfig().HTTP.ReadHeaderTimeout()
 	server := &http.Server{
-		Addr:              net.JoinHostPort("localhost", httpPort),
+		Addr:              httpAddress,
 		Handler:           r,
 		ReadHeaderTimeout: readHeaderTimeout, // Защита от Slowloris атак - тип DDoS-атаки, при которой
 		// атакующий умышленно медленно отправляет HTTP-заголовки, удерживая соединения открытыми и истощая
@@ -123,7 +115,7 @@ func main() {
 
 	// Запускаем сервер в отдельной горутине
 	go func() {
-		log.Printf("🚀 HTTP-сервер запущен на порту %s\n", httpPort)
+		log.Printf("🚀 HTTP-сервер запущен на порту %s\n", httpAddress)
 		err = server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("❌ Ошибка запуска сервера: %v\n", err)
@@ -138,7 +130,8 @@ func main() {
 	log.Println("🛑 Завершение работы сервера...")
 
 	// Создаем контекст с таймаутом для остановки сервера
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	shutdownTimeout := config.AppConfig().HTTP.ShutdownTimeout()
+	ctx, cancel := context.WithTimeout(ctx, shutdownTimeout)
 	defer cancel()
 
 	err = server.Shutdown(ctx)

@@ -7,6 +7,7 @@ replace github.com/Medveddo/rocket-science/shared => ../shared
 require (
 	github.com/Medveddo/rocket-science/shared v0.0.0-00010101000000-000000000000
 	github.com/brianvoe/gofakeit/v7 v7.3.0
+	github.com/caarlos0/env/v11 v11.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1
 	github.com/joho/godotenv v1.5.1

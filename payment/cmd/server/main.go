@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -12,71 +11,29 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 
-	partApiV1 "github.com/Medveddo/rocket-science/inventory/internal/api/part/v1"
-	partRepository "github.com/Medveddo/rocket-science/inventory/internal/repository/part"
-	partService "github.com/Medveddo/rocket-science/inventory/internal/service/part"
+	paymentApiV1 "github.com/Medveddo/rocket-science/payment/internal/api/payment/v1"
+	"github.com/Medveddo/rocket-science/payment/internal/config"
+	paymentService "github.com/Medveddo/rocket-science/payment/internal/service/payment"
 	"github.com/Medveddo/rocket-science/shared/pkg/interceptor"
-	inventoryV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/inventory/v1"
+	paymentV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/payment/v1"
 )
 
-const (
-	grpcPort = 50051
-	httpPort = 8081
-)
+const configPath = "../deploy/compose/payment/.env"
 
 func main() {
-	ctx := context.Background()
-	err := godotenv.Load("../.env")
+	err := config.Load(configPath)
 	if err != nil {
-		log.Printf("cannot load environment file: %v\n", err)
+		log.Printf("cannot load config: %v\n", err)
 		return
 	}
 
-	dbURI := os.Getenv("MONGO_URI")
-	if dbURI == "" {
-		log.Printf("error: got empty MONGO_URI variable \n")
-		return
-	}
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dbURI))
-	if err != nil {
-		log.Printf("Ошибка подключения к MongoDB: %v\n", err)
-		return
-	}
-
-	defer func() {
-		if cerr := client.Disconnect(ctx); cerr != nil {
-			log.Printf("Ошибка при отключении от MongoDB: %v\n", cerr)
-		}
-	}()
-
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		log.Printf("MongoDB недоступна, ошибка ping: %v\n", err)
-		return
-	}
-	log.Println("Успешное подключение к MongoDB")
-
-	inventoryMongoDb := client.Database("inventory")
-
-	repository, err := partRepository.NewPartRepository(inventoryMongoDb)
-	if err != nil {
-		log.Printf("error while initializing part repository: %v\n", err)
-		return
-	}
-	service := partService.NewPartService(repository)
-	api := partApiV1.NewPartAPI(service)
-
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+	grpcAddress := config.AppConfig().PaymentGRPC.Address()
+	lis, err := net.Listen("tcp", grpcAddress)
 	if err != nil {
 		log.Printf("failed to listen: %v\n", err)
 		return
@@ -91,17 +48,20 @@ func main() {
 	s := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			grpc.UnaryServerInterceptor(interceptor.LoggerInterceptor()),
-			recovery.UnaryServerInterceptor(),
 		),
 	)
 
-	inventoryV1.RegisterInventoryServiceServer(s, api)
+	// Регистрируем наш сервис
+	service := paymentService.NewService()
+	api := paymentApiV1.NewPaymentAPI(service)
+
+	paymentV1.RegisterPaymentServiceServer(s, api)
 
 	// Включаем рефлексию для отладки
 	reflection.Register(s)
 
 	go func() {
-		log.Printf("🚀 gRPC server listening on %d\n", grpcPort)
+		log.Printf("🚀 gRPC server listening on %s\n", grpcAddress)
 		err = s.Serve(lis)
 		if err != nil {
 			log.Printf("failed to serve: %v\n", err)
@@ -123,10 +83,10 @@ func main() {
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
 		// Регистрируем gRPC-gateway хендлеры
-		err = inventoryV1.RegisterInventoryServiceHandlerFromEndpoint(
+		err = paymentV1.RegisterPaymentServiceHandlerFromEndpoint(
 			ctx,
 			mux,
-			fmt.Sprintf("localhost:%d", grpcPort),
+			grpcAddress,
 			opts,
 		)
 		if err != nil {
@@ -157,14 +117,15 @@ func main() {
 		}))
 
 		// Создаем HTTP сервер
+		httpAddress := config.AppConfig().HTTP.Address()
 		gwServer = &http.Server{
-			Addr:              fmt.Sprintf(":%d", httpPort),
+			Addr:              httpAddress,
 			Handler:           httpMux,
 			ReadHeaderTimeout: 10 * time.Second,
 		}
 
 		// Запускаем HTTP сервер
-		log.Printf("🌐 HTTP server with gRPC-Gateway and Swagger UI listening on %d\n", httpPort)
+		log.Printf("🌐 HTTP server with gRPC-Gateway and Swagger UI listening on %s\n", httpAddress)
 		err = gwServer.ListenAndServe()
 		if err != nil && errors.Is(err, http.ErrServerClosed) {
 			log.Printf("Failed to serve HTTP: %v\n", err)
