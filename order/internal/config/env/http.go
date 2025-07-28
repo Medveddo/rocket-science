@@ -8,8 +8,8 @@ import (
 )
 
 type httpEnvConfig struct {
-	Host string `env:"HTTP_HOST,required"`
-	Port string `env:"HTTP_PORT,required"`
+	Host              string        `env:"HTTP_HOST,required"`
+	Port              string        `env:"HTTP_PORT,required"`
 	ReadHeaderTimeout time.Duration `env:"HTTP_READ_HEADER_TIMEOUT,required"`
 	ShutdownTimeout   time.Duration `env:"HTTP_SHUTDOWN_TIMEOUT,required"`
 }

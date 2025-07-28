@@ -11,10 +11,10 @@ import (
 var appConfig *config
 
 type config struct {
-	Logger  LoggerConfig
+	Logger        LoggerConfig
 	InventoryGRPC InventoryGRPCConfig
-	Mongo   MongoConfig
-	HTTP    HTTPConfig
+	Mongo         MongoConfig
+	HTTP          HTTPConfig
 }
 
 func Load(path ...string) error {
@@ -44,10 +44,10 @@ func Load(path ...string) error {
 	}
 
 	appConfig = &config{
-		Logger:  loggerCfg,
+		Logger:        loggerCfg,
 		InventoryGRPC: inventoryGRPCCfg,
-		Mongo:   mongoCfg,
-		HTTP:    httpCfg,
+		Mongo:         mongoCfg,
+		HTTP:          httpCfg,
 	}
 
 	return nil
