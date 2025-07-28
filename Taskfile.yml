@@ -16,6 +16,7 @@ vars:
   PROTOC_GEN_VALIDATE_VERSION: 'v1.2.1'
   PROTOC_GEN_OPENAPIV2_VERSION: 'v2.26.3'
   MOCKERY_VERSION: 'v2.53.3'
+  GOOSE_VERSION: 'v3.24.3'
 
   BIN_DIR: '{{.ROOT_DIR}}/bin'
   GOLANGCI_LINT: '{{.BIN_DIR}}/golangci-lint'
@@ -31,6 +32,7 @@ vars:
   PROTOC_GEN_VALIDATE: '{{.BIN_DIR}}/protoc-gen-validate'
   PROTOC_GEN_OPENAPIV2: '{{.BIN_DIR}}/protoc-gen-openapiv2'
   MOCKERY: "{{.BIN_DIR}}/mockery"
+  GOOSE: "{{.BIN_DIR}}/goose"
 
   COVERAGE_DIR: '{{.ROOT_DIR}}/coverage'
   COVERAGE_FILE: total.out
@@ -44,6 +46,12 @@ vars:
   OPEN_API_FILES: '{{.ROOT_DIR}}/shared/api/bundles'
 
   MODULES: assembly inventory order payment platform iam notification
+
+  DOCKER_NETWORK: 'rocket_science_network'
+
+  ORDER_MIGRATIONS_DIR: './order/migrations'
+  POSTGRES_DSN: 'postgres://order_user:order_password@localhost:5433/order_db?sslmode=disable'
+
 
 tasks:
   install-formatters:
@@ -607,7 +615,84 @@ tasks:
         for mod in {{.MODULES}}; do
           if [ -d "$mod" ]; then
             echo "🧪 Тестируем модуль $mod"
-            go test -v ./$mod/... || ERR=1
+            go test ./$mod/... || ERR=1
           fi
         done
         exit $ERR
+
+  docker:network-create:
+    desc: "Создает docker сеть к которой подключатся все сервисы"
+    cmds:
+      - docker network create {{.DOCKER_NETWORK}}
+
+  docker:network-rm:
+    desc: "Создает docker сеть к которой подключатся все сервисы"
+    cmds:
+      - docker network rm {{.DOCKER_NETWORK}}
+
+  up-inventory:
+    desc: Поднять Inventory сервис и все его зависимости
+    dir: deploy/compose/inventory
+    cmds:
+      - echo "[task] 📦 Поднимаем Inventory с зависимостями"
+      - docker compose --env-file ../../../.env up --build --detach 
+
+  down-inventory:
+    desc: Остановить и удалить Inventory сервис и все его зависимости
+    dir: deploy/compose/inventory
+    cmds:
+      - echo "[task] 🛑 Останавливаем Inventory с зависимостями"
+      - docker compose dow
+  
+  up-order:
+    dir: deploy/compose/order
+    cmds:
+      - echo "[task] 📦 Поднимаем Order с зависимостями"
+      - docker compose --env-file ../../../.env up --build --detach 
+
+  down-order:
+    desc: Остановить и удалить Order сервис и все его зависимости
+    dir: deploy/compose/order
+    cmds:
+      - echo "[task] 🛑 Останавливаем Inventory с зависимостями"
+      - docker compose down --volumes
+
+  run-inventory:
+    dir: inventory
+    cmds:
+      - go run cmd/main.go
+
+  run-payment:
+    dir: payment
+    cmds:
+      - go run cmd/main.go
+  
+  run-order:
+    dir: order
+    cmds:
+      - go run cmd/main.go
+
+  install-goose:
+    cmds:
+      - |
+        [ -f {{.GOOSE}} ] || {
+          echo '📦 Устанавливаем goose {{.GOOSE_VERSION}}...'
+          GOBIN={{.BIN_DIR}} go install github.com/pressly/goose/v3/cmd/goose@{{.GOOSE_VERSION}}
+        }
+    status:
+      - test -x {{.GOOSE}}
+  
+  goose-status:
+    dir: order
+    cmds:
+      - '{{.GOOSE}} -dir migrations postgres "user=order_user dbname=order_db password=order_password port=5433 sslmode=disable host=localhost" status'
+
+  goose-up:
+    dir: order
+    cmds:
+      - '{{.GOOSE}} -dir migrations postgres "user=order_user dbname=order_db password=order_password port=5433 sslmode=disable host=localhost" up'
+
+  goose-down:
+    dir: order
+    cmds:
+      - '{{.GOOSE}} -dir migrations postgres "user=order_user dbname=order_db password=order_password port=5433 sslmode=disable host=localhost" down'

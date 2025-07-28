@@ -8,47 +8,36 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Medveddo/rocket-science/order/internal/model"
-	inventoryV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/inventory/v1"
 )
 
 func (s *orderService) CreateOrder(ctx context.Context, request model.CreateOrderRequest) (model.CreateOrderResponse, error) {
-	partUUIDs := make([]string, len(request.PartUuids))
-	for i, partUUID := range request.PartUuids {
-		partUUIDs[i] = partUUID.String()
-	}
-
-	listPartsResponse, err := s.inventoryClient.ListParts(ctx, &inventoryV1.ListPartsRequest{
-		Filter: &inventoryV1.PartsFilter{
-			Uuids: partUUIDs,
-		},
+	parts, err := s.inventoryClient.ListParts(ctx, model.PartsFilter{
+		UUIDs: request.PartUuids,
 	})
 	if err != nil {
 		log.Printf("error while fetching inventory: %v\n", err)
 		return model.CreateOrderResponse{}, model.ErrFailedToFetchInventory
 	}
 
-	parts := listPartsResponse.GetParts()
+	returned := make(map[string]struct{}, len(parts))
+	for _, part := range parts {
+		returned[part.UUID] = struct{}{}
+	}
 
-	if len(parts) != len(request.PartUuids) {
-
-		returned := make(map[string]struct{}, len(parts))
-		for _, part := range parts {
-			returned[part.GetUuid()] = struct{}{}
+	var missing []string
+	for _, reqUUID := range request.PartUuids {
+		if _, ok := returned[reqUUID]; !ok {
+			missing = append(missing, reqUUID)
 		}
-
-		var missing []string
-		for _, reqUUID := range partUUIDs {
-			if _, ok := returned[reqUUID]; !ok {
-				missing = append(missing, reqUUID)
-			}
-		}
+	}
+	if len(missing) > 0 {
 		err = fmt.Errorf("the following partUuid(s) do not exist: %v: %w", missing, model.ErrPartDoesNotExist)
 		return model.CreateOrderResponse{}, err
 	}
 
 	var totalPrice float64
 	for _, part := range parts {
-		totalPrice += part.GetPrice()
+		totalPrice += part.Price
 	}
 
 	orderUuid := uuid.New()

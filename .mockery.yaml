@@ -18,3 +18,15 @@ packages:
   github.com/Medveddo/rocket-science/order/internal/service:
     config:
       include-regex: ".*Service"
+
+  github.com/Medveddo/rocket-science/order/internal/client/grpc/inventory/v1:
+    config:
+      include-regex: ".*Client"
+
+  github.com/Medveddo/rocket-science/order/internal/client/grpc/payment/v1:
+    config:
+      include-regex: ".*Client"
+
+  github.com/Medveddo/rocket-science/order/internal/repository:
+    config:
+      include-regex: ".*Repository"

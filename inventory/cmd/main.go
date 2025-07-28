@@ -14,6 +14,9 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
@@ -31,6 +34,48 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
+	err := godotenv.Load("../.env")
+	if err != nil {
+		log.Printf("cannot load environment file: %v\n", err)
+		return
+	}
+
+	dbURI := os.Getenv("MONGO_URI")
+	if dbURI == "" {
+		log.Printf("error: got empty MONGO_URI variable \n")
+		return
+	}
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dbURI))
+	if err != nil {
+		log.Printf("Ошибка подключения к MongoDB: %v\n", err)
+		return
+	}
+
+	defer func() {
+		if cerr := client.Disconnect(ctx); cerr != nil {
+			log.Printf("Ошибка при отключении от MongoDB: %v\n", cerr)
+		}
+	}()
+
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		log.Printf("MongoDB недоступна, ошибка ping: %v\n", err)
+		return
+	}
+	log.Println("Успешное подключение к MongoDB")
+
+	inventoryMongoDb := client.Database("inventory")
+
+	repository, err := partRepository.NewPartRepository(inventoryMongoDb)
+	if err != nil {
+		log.Printf("error while initializing part repository: %v\n", err)
+		return
+	}
+	service := partService.NewPartService(repository)
+	api := partApiV1.NewPartAPI(service)
+
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
 	if err != nil {
 		log.Printf("failed to listen: %v\n", err)
@@ -49,10 +94,6 @@ func main() {
 			recovery.UnaryServerInterceptor(),
 		),
 	)
-
-	repository := partRepository.NewRepository()
-	service := partService.NewPartService(repository)
-	api := partApiV1.NewPartAPI(service)
 
 	inventoryV1.RegisterInventoryServiceServer(s, api)
 

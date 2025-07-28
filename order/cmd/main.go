@@ -13,10 +13,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	orderApiV1 "github.com/Medveddo/rocket-science/order/internal/api/order/v1"
+	inventoryClientV1 "github.com/Medveddo/rocket-science/order/internal/client/grpc/inventory/v1"
+	paymentClientV1 "github.com/Medveddo/rocket-science/order/internal/client/grpc/payment/v1"
 	orderRepository "github.com/Medveddo/rocket-science/order/internal/repository/order"
 	orderService "github.com/Medveddo/rocket-science/order/internal/service/order"
 	orderV1 "github.com/Medveddo/rocket-science/shared/pkg/openapi/order/v1"
@@ -32,12 +36,38 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
+	err := godotenv.Load("../.env")
+	if err != nil {
+		log.Printf("cannot load environment file: %v\n", err)
+		return
+	}
+
+	dbURI := os.Getenv("POSTGRES_URI")
+	if dbURI == "" {
+		log.Printf("error: got empty MONGO_URI variable \n")
+		return
+	}
+
+	pool, err := pgxpool.New(ctx, dbURI)
+	if err != nil {
+		log.Printf("failed to connect to database: %v\n", err)
+		return
+	}
+	defer pool.Close()
+	err = pool.Ping(ctx)
+	if err != nil {
+		log.Printf("failed to ping database: %v\n", err)
+		return
+	}
+
 	conn, err := grpc.NewClient(
 		"localhost:50052",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		log.Fatalf("failed to connect to Payment Service: %v\n", err)
+		log.Printf("failed to connect to Payment Service: %v\n", err)
+		return
 	}
 
 	inventoryConn, err := grpc.NewClient(
@@ -45,23 +75,28 @@ func main() {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		log.Fatalf("failed to connect to Payment Service: %v\n", err)
+		log.Printf("failed to connect to Payment Service: %v\n", err)
+		return
 	}
 
 	// to warm up channels
 	conn.Connect()
 
-	paymentClient := paymentV1.NewPaymentServiceClient(conn)
-	inventoryClient := inventoryV1.NewInventoryServiceClient(inventoryConn)
+	paymentProtoClient := paymentV1.NewPaymentServiceClient(conn)
+	inventoryProtoClient := inventoryV1.NewInventoryServiceClient(inventoryConn)
 
-	repository := orderRepository.NewOrderRepository()
+	paymentClient := paymentClientV1.NewPaymentClientV1(paymentProtoClient)
+	inventoryClient := inventoryClientV1.NewInventoryClientV1(inventoryProtoClient)
+
+	repository := orderRepository.NewOrderRepository(pool)
 	service := orderService.NewOrderService(repository, inventoryClient, paymentClient)
 	api := orderApiV1.NewOrderAPI(service)
 
 	// Создаем OpenAPI сервер
 	orderServer, err := orderV1.NewServer(api)
 	if err != nil {
-		log.Fatalf("ошибка создания сервера OpenAPI: %v", err)
+		log.Printf("ошибка создания сервера OpenAPI: %v", err)
+		return
 	}
 
 	// Инициализируем роутер Chi

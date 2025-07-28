@@ -1,15 +1,22 @@
 package converter
 
 import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"github.com/Medveddo/rocket-science/inventory/internal/model"
 	repoModel "github.com/Medveddo/rocket-science/inventory/internal/repository/model"
 )
 
 // Converts domain Part to repository Part
 // nolint
-func PartToRepoPart(p model.Part) repoModel.Part {
+func PartToRepoPart(p model.Part) (repoModel.Part, error) {
+	id_, err := primitive.ObjectIDFromHex(p.UUID)
+	if err != nil {
+		return repoModel.Part{}, err
+	}
+
 	repoPart := repoModel.Part{
-		UUID:          p.UUID,
+		ID:            id_,
 		Name:          p.Name,
 		Description:   p.Description,
 		Price:         p.Price,
@@ -39,14 +46,14 @@ func PartToRepoPart(p model.Part) repoModel.Part {
 		value := PartValueToRepoValue(*v)
 		repoPart.Metadata[k] = &value
 	}
-	return repoPart
+	return repoPart, nil
 }
 
 // Converts repository Part to domain Part
 // nolint
 func RepoPartToPart(r repoModel.Part) model.Part {
 	part := model.Part{
-		UUID:          r.UUID,
+		UUID:          r.ID.Hex(),
 		Name:          r.Name,
 		Description:   r.Description,
 		Price:         r.Price,
