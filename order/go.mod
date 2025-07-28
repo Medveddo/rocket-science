@@ -4,6 +4,8 @@ go 1.24.4
 
 replace github.com/Medveddo/rocket-science/shared => ../shared
 
+replace github.com/Medveddo/rocket-science/platform => ../platform
+
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/Medveddo/rocket-science/shared v0.0.0-00010101000000-000000000000

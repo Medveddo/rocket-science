@@ -4,6 +4,8 @@ go 1.24.4
 
 replace github.com/Medveddo/rocket-science/shared => ../shared
 
+replace github.com/Medveddo/rocket-science/platform => ../platform
+
 require (
 	github.com/Medveddo/rocket-science/shared v0.0.0-00010101000000-000000000000
 	github.com/brianvoe/gofakeit/v7 v7.3.0
