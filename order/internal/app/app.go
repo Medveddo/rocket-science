@@ -42,6 +42,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initDI,
 		a.initLogger,
 		a.initCloser,
+		a.initMigrations,
 		a.initHTTPServer,
 	}
 
@@ -111,4 +112,10 @@ func (a *App) runHTTPServer(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (a *App) initMigrations(ctx context.Context) error {
+	// We can Up migrations here potentially
+	// Now I want to run it from the command line
+	return a.diContainer.Migrator(ctx).Status()
 }

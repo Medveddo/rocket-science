@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -18,6 +19,8 @@ import (
 	"github.com/Medveddo/rocket-science/order/internal/service"
 	orderService "github.com/Medveddo/rocket-science/order/internal/service/order"
 	"github.com/Medveddo/rocket-science/platform/pkg/closer"
+	"github.com/Medveddo/rocket-science/platform/pkg/migrator"
+	pgMigrator "github.com/Medveddo/rocket-science/platform/pkg/migrator/pg"
 	orderV1 "github.com/Medveddo/rocket-science/shared/pkg/openapi/order/v1"
 	inventoryV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/inventory/v1"
 	paymentV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/payment/v1"
@@ -35,6 +38,8 @@ type diContainer struct {
 	paymentConn   *grpc.ClientConn
 	inventoryConn *grpc.ClientConn
 	postgresPool  *pgxpool.Pool
+
+	migrator migrator.Migrator
 }
 
 func NewDiContainer() *diContainer {
@@ -148,4 +153,14 @@ func (d *diContainer) InventoryClient(ctx context.Context) grpcClient.InventoryC
 	}
 
 	return d.inventoryClient
+}
+
+func (d *diContainer) Migrator(ctx context.Context) migrator.Migrator {
+	if d.migrator == nil {
+		migrationsDir := "./migrations"
+		db := stdlib.OpenDB(*d.PostgreSQLPool(ctx).Config().ConnConfig)
+		d.migrator = pgMigrator.NewMigrator(db, migrationsDir)
+	}
+
+	return d.migrator
 }
