@@ -6,7 +6,7 @@ import (
 	// "sync"
 	"time"
 
-	// "go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson"
 	// "go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -21,14 +21,25 @@ type partsRepository struct {
 	collection *mongo.Collection
 }
 
-func NewPartRepository(db *mongo.Database) (*partsRepository, error) {
-	ctx := context.Background()
-	collection := db.Collection("parts")
+func NewPartRepository(db *mongo.Database) *partsRepository {
+	return &partsRepository{
+		collection: db.Collection("parts"),
+	}
+}
 
-	err := collection.Drop(ctx)
+func (r *partsRepository) Collection() *mongo.Collection {
+	return r.collection
+}
+
+func InitParts(ctx context.Context, collection *mongo.Collection) error {
+	count, err := collection.CountDocuments(ctx, bson.D{})
 	if err != nil {
-		log.Printf("cannot drop parts collection: %v\n", err)
-		return nil, err
+		log.Println("error while counting parts in collection")
+		return err
+	}
+
+	if count > 0 {
+		return nil
 	}
 
 	now := time.Now()
@@ -92,12 +103,10 @@ func NewPartRepository(db *mongo.Database) (*partsRepository, error) {
 	result, err := collection.InsertMany(ctx, parts)
 	if err != nil {
 		log.Println("error while inserting parts in collection")
-		return nil, err
+		return err
 	}
 
 	log.Printf("inserted parts in collection: %v", len(result.InsertedIDs))
 
-	return &partsRepository{
-		collection: collection,
-	}, nil
+	return nil
 }

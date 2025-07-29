@@ -2,25 +2,17 @@ package main
 
 import (
 	"context"
-	"errors"
-	"log"
-	"net"
-	"net/http"
-	"os"
+	"fmt"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/reflection"
+	"go.uber.org/zap"
 
-	paymentApiV1 "github.com/Medveddo/rocket-science/payment/internal/api/payment/v1"
+	"github.com/Medveddo/rocket-science/payment/internal/app"
 	"github.com/Medveddo/rocket-science/payment/internal/config"
-	paymentService "github.com/Medveddo/rocket-science/payment/internal/service/payment"
-	"github.com/Medveddo/rocket-science/shared/pkg/interceptor"
-	paymentV1 "github.com/Medveddo/rocket-science/shared/pkg/proto/payment/v1"
+	"github.com/Medveddo/rocket-science/platform/pkg/closer"
+	"github.com/Medveddo/rocket-science/platform/pkg/logger"
 )
 
 const configPath = "../deploy/compose/payment/.env"
@@ -28,116 +20,33 @@ const configPath = "../deploy/compose/payment/.env"
 func main() {
 	err := config.Load(configPath)
 	if err != nil {
-		log.Printf("cannot load config: %v\n", err)
-		return
+		panic(fmt.Errorf("failed to load config: %w", err))
 	}
 
-	grpcAddress := config.AppConfig().PaymentGRPC.Address()
-	lis, err := net.Listen("tcp", grpcAddress)
+	appCtx, appCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer appCancel()
+	defer gracefulShutdown()
+
+	closer.Configure(syscall.SIGINT, syscall.SIGTERM)
+
+	a, err := app.New(appCtx)
 	if err != nil {
-		log.Printf("failed to listen: %v\n", err)
+		logger.Error(appCtx, "❌ failed to create application", zap.Error(err))
 		return
 	}
-	defer func() {
-		if cerr := lis.Close(); cerr != nil {
-			log.Printf("failed to close listener: %v\n", cerr)
-		}
-	}()
 
-	// Создаем gRPC сервер
-	s := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			grpc.UnaryServerInterceptor(interceptor.LoggerInterceptor()),
-		),
-	)
+	err = a.Run(appCtx)
+	if err != nil {
+		logger.Error(appCtx, "❌ error running application", zap.Error(err))
+		return
+	}
+}
 
-	// Регистрируем наш сервис
-	service := paymentService.NewService()
-	api := paymentApiV1.NewPaymentAPI(service)
+func gracefulShutdown() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	paymentV1.RegisterPaymentServiceServer(s, api)
-
-	// Включаем рефлексию для отладки
-	reflection.Register(s)
-
-	go func() {
-		log.Printf("🚀 gRPC server listening on %s\n", grpcAddress)
-		err = s.Serve(lis)
-		if err != nil {
-			log.Printf("failed to serve: %v\n", err)
-			return
-		}
-	}()
-
-	// Запускаем HTTP сервер с gRPC Gateway и Swagger UI
-	var gwServer *http.Server
-	go func() {
-		// Создаем контекст с отменой
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		// Создаем мультиплексор для HTTP запросов
-		mux := runtime.NewServeMux()
-
-		// Настраиваем опции для соединения с gRPC сервером
-		opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-
-		// Регистрируем gRPC-gateway хендлеры
-		err = paymentV1.RegisterPaymentServiceHandlerFromEndpoint(
-			ctx,
-			mux,
-			grpcAddress,
-			opts,
-		)
-		if err != nil {
-			log.Printf("Failed to register gateway: %v\n", err)
-			return
-		}
-
-		// Создаем файловый сервер для swagger-ui
-		fileServer := http.FileServer(http.Dir("api"))
-
-		// Создаем HTTP маршрутизатор
-		httpMux := http.NewServeMux()
-
-		// Регистрируем API эндпоинты
-		httpMux.Handle("/api/", mux)
-
-		// Swagger UI эндпоинты
-		httpMux.Handle("/swagger-ui.html", fileServer)
-		httpMux.Handle("/swagger.json", fileServer)
-
-		// Редирект с корня на Swagger UI
-		httpMux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/" {
-				http.Redirect(w, r, "/swagger-ui.html", http.StatusMovedPermanently)
-				return
-			}
-			fileServer.ServeHTTP(w, r)
-		}))
-
-		// Создаем HTTP сервер
-		httpAddress := config.AppConfig().HTTP.Address()
-		gwServer = &http.Server{
-			Addr:              httpAddress,
-			Handler:           httpMux,
-			ReadHeaderTimeout: 10 * time.Second,
-		}
-
-		// Запускаем HTTP сервер
-		log.Printf("🌐 HTTP server with gRPC-Gateway and Swagger UI listening on %s\n", httpAddress)
-		err = gwServer.ListenAndServe()
-		if err != nil && errors.Is(err, http.ErrServerClosed) {
-			log.Printf("Failed to serve HTTP: %v\n", err)
-			return
-		}
-	}()
-
-	// Graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("🛑 Shutting down gRPC server...")
-	s.GracefulStop()
-	log.Println("✅ Server stopped")
+	if err := closer.CloseAll(ctx); err != nil {
+		logger.Error(ctx, "❌ error shutting down application", zap.Error(err))
+	}
 }

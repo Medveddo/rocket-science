@@ -8,6 +8,7 @@ replace github.com/Medveddo/rocket-science/platform => ../platform
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
+	github.com/Medveddo/rocket-science/platform v0.0.0-00010101000000-000000000000
 	github.com/Medveddo/rocket-science/shared v0.0.0-00010101000000-000000000000
 	github.com/brianvoe/gofakeit/v7 v7.3.0
 	github.com/caarlos0/env/v11 v11.3.1
@@ -16,6 +17,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.10.0
+	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.73.0
 )
 
@@ -47,7 +49,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090 // indirect
 	golang.org/x/net v0.40.0 // indirect
