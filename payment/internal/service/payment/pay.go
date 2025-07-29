@@ -3,7 +3,6 @@ package payment
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/Medveddo/rocket-science/payment/internal/model"
@@ -16,11 +15,15 @@ func (s *paymentService) PayOrder(ctx context.Context, req *model.PayOrderReques
 		return nil, model.ErrInvalidPaymentMethod
 	}
 
-	// Fake payment due to the fact that we don't have a real payment system
+	// Process payment using the payment client
+	transactionUUID, err := s.paymentClient.Pay(ctx, req.OrderID)
+	if err != nil {
+		logger.Error(ctx, "Payment failed", zap.String("order_id", req.OrderID), zap.Error(err))
+		return nil, err
+	}
 
-	transactionUUID := uuid.New()
-	logger.Info(ctx, "Payment successful", zap.String("order_id", req.OrderID), zap.String("transaction_uuid", transactionUUID.String()))
+	logger.Info(ctx, "Payment successful", zap.String("order_id", req.OrderID), zap.String("transaction_uuid", transactionUUID))
 	return &model.PayOrderResponse{
-		TransactionUUID: transactionUUID.String(),
+		TransactionUUID: transactionUUID,
 	}, nil
 }

@@ -11,6 +11,10 @@ packages:
     config:
       include-regex: ".*Service"
 
+  github.com/Medveddo/rocket-science/payment/internal/client:
+    config:
+      include-regex: ".*Client"
+
   github.com/Medveddo/rocket-science/inventory/internal/repository:
     config:
       include-regex: ".*Repository"
