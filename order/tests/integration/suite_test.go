@@ -13,7 +13,6 @@ import (
 	"github.com/joho/godotenv"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"go.uber.org/zap"
 
 	"github.com/Medveddo/rocket-science/platform/pkg/logger"
 )
@@ -27,28 +26,29 @@ var (
 	suiteCancel context.CancelFunc
 )
 
-func TestInventoryE2E(t *testing.T) {
+func TestOrderIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Inventory Service E2E Tests")
+	RunSpecs(t, "Order Service Integration Tests")
 }
 
 var _ = BeforeSuite(func() {
-	err := logger.Init(loggerLevelValue, true)
+	err := logger.Init("debug", true)
 	if err != nil {
 		panic(fmt.Sprintf("не удалось инициализировать логгер: %v", err))
 	}
 
 	suiteCtx, suiteCancel = context.WithTimeout(context.Background(), testsTimeout)
 
-	// Загружаем .env файл и устанавливаем переменные в окружение
-	envVars, err := godotenv.Read(filepath.Join("..", "..", "..", "deploy", "compose", "inventory", ".env"))
+	// Load .env file and set environment variables
+	envVars, err := godotenv.Read(filepath.Join("..", "..", "..", "deploy", "compose", "order", ".env"))
 	if err != nil {
-		logger.Fatal(suiteCtx, "Не удалось загрузить .env файл", zap.Error(err))
-	}
-
-	// Устанавливаем переменные в окружение процесса
-	for key, value := range envVars {
-		_ = os.Setenv(key, value)
+		// If .env file doesn't exist, continue with default values
+		logger.Info(suiteCtx, "No .env file found, using default values")
+	} else {
+		// Set environment variables in the process
+		for key, value := range envVars {
+			_ = os.Setenv(key, value)
+		}
 	}
 
 	logger.Info(suiteCtx, "Запуск тестового окружения...")
