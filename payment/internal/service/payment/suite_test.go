@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/Medveddo/rocket-science/payment/internal/client/mocks"
+	"github.com/Medveddo/rocket-science/platform/pkg/logger"
 )
 
 type ServiceSuite struct {
@@ -12,13 +15,17 @@ type ServiceSuite struct {
 
 	ctx context.Context //nolint:containedctx
 
-	service *paymentService
+	service           *paymentService
+	paymentClientMock *mocks.PaymentClient
 }
 
 func (s *ServiceSuite) SetupTest() {
 	s.ctx = context.Background()
 
-	s.service = NewService()
+	logger.SetNopLogger()
+
+	s.paymentClientMock = mocks.NewPaymentClient(s.T())
+	s.service = NewService(s.paymentClientMock)
 }
 
 func (s *ServiceSuite) TearDownTest() {}

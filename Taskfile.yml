@@ -17,6 +17,7 @@ vars:
   PROTOC_GEN_OPENAPIV2_VERSION: 'v2.26.3'
   MOCKERY_VERSION: 'v2.53.3'
   GOOSE_VERSION: 'v3.24.3'
+  ENVSUBST_VERSION: 'v1.4.3'
 
   BIN_DIR: '{{.ROOT_DIR}}/bin'
   GOLANGCI_LINT: '{{.BIN_DIR}}/golangci-lint'
@@ -33,6 +34,9 @@ vars:
   PROTOC_GEN_OPENAPIV2: '{{.BIN_DIR}}/protoc-gen-openapiv2'
   MOCKERY: "{{.BIN_DIR}}/mockery"
   GOOSE: "{{.BIN_DIR}}/goose"
+  ENVSUBST: "{{.BIN_DIR}}/envsubst"
+
+  ENVDIR: '{{.ROOT_DIR}}/deploy/env'
 
   COVERAGE_DIR: '{{.ROOT_DIR}}/coverage'
   COVERAGE_FILE: total.out
@@ -46,11 +50,12 @@ vars:
   OPEN_API_FILES: '{{.ROOT_DIR}}/shared/api/bundles'
 
   MODULES: assembly inventory order payment platform iam notification
+  SERVICES: core,assembly,inventory,order,payment,iam,notification
 
   DOCKER_NETWORK: 'rocket_science_network'
 
   ORDER_MIGRATIONS_DIR: './order/migrations'
-  POSTGRES_DSN: 'postgres://order_user:order_password@localhost:5433/order_db?sslmode=disable'
+  POSTGRES_DSN: 'postgres://order_user:order_password@localhost:5433/order?sslmode=disable'
 
 
 tasks:
@@ -615,10 +620,30 @@ tasks:
         for mod in {{.MODULES}}; do
           if [ -d "$mod" ]; then
             echo "🧪 Тестируем модуль $mod"
-            go test ./$mod/... || ERR=1
+            go test -tags="!integration" $(go list ./$mod/... | grep -v -E '(/integration|/tests/integration|/integrationtests|/tests/e2e)') || ERR=1
           fi
         done
         exit $ERR
+
+  e2e:test:inventory:
+    desc: "Запускает E2E тесты для inventory service"
+    summary: |
+      Запускает end-to-end тесты для inventory service с использованием testcontainers.
+      Требует Docker для запуска MongoDB и inventory service в контейнерах.
+    dir: inventory/tests/e2e
+    cmds:
+      - echo "🧪 Запускаем E2E тесты для inventory service..."
+      - go test -tags=integration -v ./...
+
+  integration:test:order:
+    desc: "Запускает интеграционные тесты для order service"
+    summary: |
+      Запускает интеграционные тесты для order service с использованием testcontainers.
+      Требует Docker для запуска PostgreSQL в контейнере.
+    dir: order/tests/integration
+    cmds:
+      - echo "🧪 Запускаем интеграционные тесты для order service..."
+      - go test -tags=integration -v ./...
 
   docker:network-create:
     desc: "Создает docker сеть к которой подключатся все сервисы"
@@ -630,47 +655,20 @@ tasks:
     cmds:
       - docker network rm {{.DOCKER_NETWORK}}
 
-  up-inventory:
-    desc: Поднять Inventory сервис и все его зависимости
-    dir: deploy/compose/inventory
-    cmds:
-      - echo "[task] 📦 Поднимаем Inventory с зависимостями"
-      - docker compose --env-file ../../../.env up --build --detach 
-
-  down-inventory:
-    desc: Остановить и удалить Inventory сервис и все его зависимости
-    dir: deploy/compose/inventory
-    cmds:
-      - echo "[task] 🛑 Останавливаем Inventory с зависимостями"
-      - docker compose dow
-  
-  up-order:
-    dir: deploy/compose/order
-    cmds:
-      - echo "[task] 📦 Поднимаем Order с зависимостями"
-      - docker compose --env-file ../../../.env up --build --detach 
-
-  down-order:
-    desc: Остановить и удалить Order сервис и все его зависимости
-    dir: deploy/compose/order
-    cmds:
-      - echo "[task] 🛑 Останавливаем Inventory с зависимостями"
-      - docker compose down --volumes
-
   run-inventory:
     dir: inventory
     cmds:
-      - go run cmd/main.go
+      - go run cmd/server/main.go
 
   run-payment:
     dir: payment
     cmds:
-      - go run cmd/main.go
+      - go run cmd/server/main.go
   
   run-order:
     dir: order
     cmds:
-      - go run cmd/main.go
+      - go run cmd/server/main.go
 
   install-goose:
     cmds:
@@ -685,14 +683,117 @@ tasks:
   goose-status:
     dir: order
     cmds:
-      - '{{.GOOSE}} -dir migrations postgres "user=order_user dbname=order_db password=order_password port=5433 sslmode=disable host=localhost" status'
+      - '{{.GOOSE}} -dir migrations postgres "user=order_user dbname=order password=order_password port=5433 sslmode=disable host=localhost" status'
 
   goose-up:
     dir: order
     cmds:
-      - '{{.GOOSE}} -dir migrations postgres "user=order_user dbname=order_db password=order_password port=5433 sslmode=disable host=localhost" up'
+      - '{{.GOOSE}} -dir migrations postgres "user=order_user dbname=order password=order_password port=5433 sslmode=disable host=localhost" up'
 
   goose-down:
     dir: order
     cmds:
-      - '{{.GOOSE}} -dir migrations postgres "user=order_user dbname=order_db password=order_password port=5433 sslmode=disable host=localhost" down'
+      - '{{.GOOSE}} -dir migrations postgres "user=order_user dbname=order password=order_password port=5433 sslmode=disable host=localhost" down'
+
+  env:install-envsubst:
+    desc: "Устанавливает envsubst в bin/"
+    cmds:
+      - |
+        [ -f {{.ENVSUBST}} ] || {
+          echo "📦 Устанавливаем envsubst версии {{.ENVSUBST_VERSION}}..."
+          GOBIN={{.BIN_DIR}} go install github.com/a8m/envsubst/cmd/envsubst@{{.ENVSUBST_VERSION}}
+        }
+        echo "✅ envsubst установлен: {{.ENVSUBST}}"
+
+  env:generate:
+    desc: "Генерирует .env файлы для всех сервисов из шаблонов и единого файла конфигурации"
+    deps: [ env:install-envsubst ]
+    cmds:
+      - |
+        ENV_FILE="{{.ENVDIR}}/.env"
+        TEMPLATE_FILE="{{.ENVDIR}}/.env.template"
+        SCRIPT="{{.ENVDIR}}/generate-env.sh"
+        
+        if [ ! -f "$ENV_FILE" ]; then
+          if [ -f "$TEMPLATE_FILE" ]; then
+            echo "🔄 Файл $ENV_FILE не найден, создаем из шаблона $TEMPLATE_FILE"
+            cp "$TEMPLATE_FILE" "$ENV_FILE"
+            echo "✅ Создан файл $ENV_FILE. Проверьте и отредактируйте значения переменных при необходимости."
+          else
+            echo "❌ Шаблон $TEMPLATE_FILE не найден!"
+            exit 1
+          fi
+        fi
+        
+        chmod +x "$SCRIPT"
+        # Передаем список сервисов в виде строки с разделителями-запятыми
+        export SERVICES="{{.SERVICES}}"
+        ENV_SUBST={{.ENVSUBST}} "$SCRIPT"
+
+  up-inventory:
+    desc: Поднять Inventory сервис и все его зависимости
+    dir: deploy/compose/inventory
+    cmds:
+      - echo "[task] 📦 Поднимаем Inventory с зависимостями"
+      - docker compose up --build --detach
+
+  down-inventory:
+    desc: Остановить и удалить Inventory сервис и все его зависимости
+    dir: deploy/compose/inventory
+    cmds:
+      - echo "[task] 🛑 Останавливаем Inventory с зависимостями"
+      - docker compose down --volumes
+
+  up-order:
+    desc: Поднять Order сервис и все его зависимости
+    dir: deploy/compose/order
+    cmds:
+      - echo "[task] 📦 Поднимаем Order с зависимостями"
+      - docker compose up --build --detach
+
+  down-order:
+    desc: Остановить и удалить Order сервис и все его зависимости
+    dir: deploy/compose/order
+    cmds:
+      - echo "[task] 🛑 Останавливаем Order с зависимостями"
+      - docker compose down --volumes
+
+  up-all:
+    desc: Поднять все сервисы по очереди вместе с зависимостями
+    cmds:
+      - task up-inventory
+      - task up-order
+
+  down-all:
+    desc: Остановить и удалить все сервисы по очереди вместе с зависимостями
+    cmds:
+      - task down-inventory
+      - task down-order
+
+  test-integration:
+    deps: [ env:generate ]
+    desc: "Запускает интеграционные тесты для указанных модулей"
+    summary: |
+      Запускает интеграционные тесты для модулей, указанных через переменную MODULES.
+      Использует тег "integration" для идентификации интеграционных тестов.
+    cmds:
+      - |
+        ERR=0
+        echo "🚀 Запуск интеграционных тестов (по тегу integration) для модулей: {{.MODULES}}"
+        for mod in {{.MODULES}}; do
+          if [ -d "$mod" ]; then
+            echo "🧪 Проверка модуля $mod на наличие интеграционных тестов"
+            
+            # Проверяем наличие файлов с тегом integration
+            HAS_TESTS=$(grep -r "//go:build integration" $mod --include="*.go" | wc -l)
+            
+            if [ "$HAS_TESTS" -eq 0 ]; then
+              echo "⚠️ Модуль $mod не содержит интеграционных тестов (с тегом integration), пропускаем"
+              continue
+            fi
+            
+            echo "▶️ Запуск интеграционных тестов для $mod"
+            go test -tags=integration ./$mod/... || ERR=1
+          fi
+        done
+        exit $ERR
