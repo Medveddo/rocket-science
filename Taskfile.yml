@@ -620,7 +620,7 @@ tasks:
         for mod in {{.MODULES}}; do
           if [ -d "$mod" ]; then
             echo "🧪 Тестируем модуль $mod"
-            go test -v -tags="!integration" $(go list ./$mod/... | grep -v -E '(/integration|/tests/integration|/integrationtests|/tests/e2e)') || ERR=1
+            go test -tags="!integration" $(go list ./$mod/... | grep -v -E '(/integration|/tests/integration|/integrationtests|/tests/e2e)') || ERR=1
           fi
         done
         exit $ERR
@@ -771,6 +771,7 @@ tasks:
       - task down-order
 
   test-integration:
+    deps: [ env:generate ]
     desc: "Запускает интеграционные тесты для указанных модулей"
     summary: |
       Запускает интеграционные тесты для модулей, указанных через переменную MODULES.
@@ -792,7 +793,7 @@ tasks:
             fi
             
             echo "▶️ Запуск интеграционных тестов для $mod"
-            go test -v -tags=integration ./$mod/... || ERR=1
+            go test -tags=integration ./$mod/... || ERR=1
           fi
         done
         exit $ERR
